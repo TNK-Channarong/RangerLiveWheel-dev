@@ -1,6 +1,6 @@
 // =====================================================
 // 🎡 วงล้อพาโชค — Google Apps Script Backend
-// Version: 1.0
+// Version: 1.0.0xx
 // =====================================================
 
 // ===== CONFIG =====
@@ -47,6 +47,7 @@ function doPost(e) {
   }
 }
 
+/*
 function doGet(e) {
   // Admin panel GET (สำหรับ Admin UI ที่ทำแยกต่างหาก)
   const action = e.parameter.action;
@@ -56,13 +57,54 @@ function doGet(e) {
     return createResponse(getAdminStats());
   }
   return createResponse({ success: true, message: 'Lucky Wheel API v1.0' });
+}*/
+function doGet(e) {
+  const action = e.parameter.action;
+  const pw = e.parameter.pw;
+
+  if (action === 'admin') {
+    if (pw !== ADMIN_PASSWORD) return createResponse({ success: false, message: 'Unauthorized' });
+    const subAction = e.parameter.subAction;
+    switch (subAction) {
+      case 'stats':   return createResponse(getAdminStats());
+      case 'reset':   return createResponse(resetCampaign({}));
+      case 'setDate': return createResponse(setExpiryDate(e.parameter.date));
+      default:        return createResponse({ success: false, message: 'Unknown subAction' });
+    }
+  }
+
+  if (action === 'check') {
+    return createResponse(checkPlayer(e.parameter.userId));
+  }
+
+  if (action === 'prizes') {
+    return createResponse(getPrizes());
+  }
+
+  return createResponse({ success: true, message: 'Lucky Wheel API v1.0' });
 }
 
+
+function doOptions(e) {
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
+
+/*
 function createResponse(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+*/
+function createResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 
 // =====================================================
 // CHECK PLAYER — ตรวจสอบว่าเคยเล่นหรือยัง
