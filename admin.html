@@ -643,6 +643,7 @@ async function confirmReset() {
 // =====================================================
 // UTILS
 // =====================================================
+/*
 async function callAPI(body) {
   const res = await fetch(ADMIN_CONFIG.APPS_SCRIPT_URL, {
     method: 'POST',
@@ -651,6 +652,20 @@ async function callAPI(body) {
   });
   return res.json();
 }
+*/
+async function callAPI(body) {
+  const { action, subAction, password, ...rest } = body;
+  const params = new URLSearchParams({
+    action,
+    subAction: subAction || '',
+    pw: password || ADMIN_CONFIG.PASSWORD,
+    ...rest
+  });
+  const url = `${ADMIN_CONFIG.APPS_SCRIPT_URL}?${params.toString()}`;
+  const res = await fetch(url, { method: 'GET' });
+  return res.json();
+}
+
 
 function showToast(msg, type = 'success') {
   const toast = document.getElementById('toast');
