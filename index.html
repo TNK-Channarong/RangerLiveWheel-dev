@@ -1233,6 +1233,7 @@ function initStars() {
 // =====================================================
 // API CALLS
 // =====================================================
+/*
 async function callAPI(action, params) {
   const body = { action, ...params };
   const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
@@ -1243,6 +1244,13 @@ async function callAPI(action, params) {
   if (!res.ok) throw new Error('Server error ' + res.status);
   return res.json();
 }
+*/
+async function callAPI(action, params) {
+  const query = new URLSearchParams({ action, ...params });
+  const url = `${CONFIG.APPS_SCRIPT_URL}?${query.toString()}`;
+  const res = await fetch(url, { method: 'GET' });
+  return res.json();
+}  
 
 // =====================================================
 // SCREEN MANAGEMENT
