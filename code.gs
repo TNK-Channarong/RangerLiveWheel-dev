@@ -81,6 +81,10 @@ function doGet(e) {
     return createResponse(getPrizes());
   }
 
+  if (action === 'spin') {
+    return createResponse(handleSpin(e.parameter.userId));
+  }
+
   return createResponse({ success: true, message: 'Lucky Wheel API v1.0' });
 }
 
