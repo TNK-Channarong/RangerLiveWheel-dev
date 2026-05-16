@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>วงล้อพาโชค</title>
+<title>Ranger Live Wheel</title>
 <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -140,7 +140,7 @@
 
 <!-- LOADING -->
 <div class="screen" id="screen-loading">
-  <div class="loading-logo">🎡 วงล้อพาโชค</div>
+  <div class="loading-logo">🎡 Ranger Live Wheel</div>
   <div class="loading-sub">กำลังโหลด...</div>
   <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
 </div>
@@ -174,7 +174,7 @@
 <!-- WHEEL -->
 <div class="screen hidden" id="screen-wheel">
   <div class="wheel-header">
-    <div class="wheel-title">🎡 วงล้อพาโชค</div>
+    <div class="wheel-title">🎡 Ranger Live Wheel</div>
     <div class="wheel-subtitle">หมุนเพื่อรับรางวัล • สิทธิ์ 1 ครั้งต่อท่าน</div>
     <div class="token-bar-wrap" id="tokenBarWrap" style="display:none">
       <div class="token-bar" id="tokenBar"></div>
@@ -529,7 +529,7 @@ function copyCode(){
 
 function shareResult(){
   if(!spinResult)return; playClick();
-  const text=`🎡 ฉันได้รับรางวัล "${spinResult.name}" จากวงล้อพาโชค!\nรหัส: ${spinResult.rewardCode}\n${spinResult.desc}`;
+  const text=`🎡 ฉันได้รับรางวัล "${spinResult.name}" จาก Ranger Live Wheel!\nรหัส: ${spinResult.rewardCode}\n${spinResult.desc}`;
   if(typeof liff!=='undefined'&&liff.isInClient&&liff.isInClient()){
     liff.shareTargetPicker([{type:'text',text}]).catch(()=>{});
   }else if(navigator.share){
