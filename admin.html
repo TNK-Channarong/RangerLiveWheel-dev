@@ -154,12 +154,12 @@
     <div class="login-title">Admin Panel v2</div>
     <div class="login-sub">Ranger Live Wheel — ระบบหลังบ้าน</div>
     
-    <input class="login-input" type="password" id="pw-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')login()">
-    <!-- input class="login-input" type="password" id="pw-input" 
+    <!-- input class="login-input" type="password" id="pw-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')login()" -->
+    <input class="login-input" type="password" id="pw-input" 
       placeholder="รหัสผ่าน" 
       oninput="document.getElementById('login-showpw').textContent = this.value"
-      onkeydown="if(event.key==='Enter') login()" -->
-    <!-- div class="login-pw" id="login-showpw">แสดงรหัสผ่านตรงนี้</div -->    
+      onkeydown="if(event.key==='Enter') login()">
+    <div class="login-pw" id="login-showpw">แสดงรหัสผ่านตรงนี้</div>    
     
     <button class="login-btn" onclick="login()">เข้าสู่ระบบ</button>
     <div class="login-error" id="login-error">รหัสผ่านไม่ถูกต้อง</div>
