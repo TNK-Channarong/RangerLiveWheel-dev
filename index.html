@@ -188,11 +188,13 @@
     <div class="wheel-pointer"></div>
     <div class="wheel-center">SPIN<br>NOW</div>
   </div>
+  <!--
   <button class="spin-btn" id="spinBtn" onclick="startSpin()">🎰 หมุนเลย!</button>
   <div class="prizes-section">
     <div class="prizes-title">รางวัลทั้งหมด</div>
     <div id="prizes-list"></div>
   </div>
+  -->
 </div>
 
 <!-- SPINNING -->
@@ -431,12 +433,14 @@ function lighten(hex,a){const n=parseInt(hex.replace('#',''),16);return`rgb(${Ma
 function darken(hex,a){const n=parseInt(hex.replace('#',''),16);return`rgb(${Math.max(0,(n>>16)-a)},${Math.max(0,((n>>8)&0xff)-a)},${Math.max(0,(n&0xff)-a)})`}
 
 function renderPrizeList(){
+  /*
   document.getElementById('prizes-list').innerHTML=PRIZES.map(p=>`
     <div class="prize-row">
       <div class="prize-dot" style="background:${p.color};box-shadow:0 0 6px ${p.color}"></div>
       <div class="prize-name">${p.emoji} ${p.name}</div>
       ${p.remaining===0?'<span class="prize-out-badge">หมดแล้ว</span>':`<span class="prize-count">${p.remaining}/${p.total}</span>`}
     </div>`).join('');
+  */
 }
 
 // =====================================================
