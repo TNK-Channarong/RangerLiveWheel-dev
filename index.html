@@ -252,7 +252,7 @@ const CONFIG = {
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzJE_C-A8WFW9Ys4UoIfguQK65_K5xpgLUKW-5dR-NQs_o40Z0cpUaPNfTwmvOXyGcPrA/exec',
 
   // ← true = ทดสอบโดยไม่ต้องมี LIFF/API จริง, เปลี่ยนเป็น false เวลา deploy จริง
-  DEMO_MODE: false
+  DEMO_MODE: true
 };
 
 // Live Wheel
@@ -292,15 +292,98 @@ function playTone(freq,dur,type='sine',vol=0.3,delay=0){
   }catch(e){}
 }
 
-function playSpinSound(){
-  let delay=0;
-  for(let i=0;i<45;i++){
-    const p=i/45;
-    const gap=p<0.5?0.05-p*0.04:0.01+(p-0.5)*0.18;
-    delay+=gap;
-    playTone(700+Math.random()*300,0.04,'square',0.12,delay);
-  }
+// =====================================================
+// 🚂 TRAIN SOUND ENGINE
+// =====================================================
+let _chugInterval=null;
+
+// เสียง chug หนึ่งครั้ง — noise burst สั้นๆ คล้ายล้อรถไฟ
+function playChug(vol=0.18){
+  if(!soundEnabled)return;
+  try{
+    const ctx=getCtx();
+    // White noise via buffer
+    const bufSize=ctx.sampleRate*0.06;
+    const buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) data[i]=(Math.random()*2-1);
+    const src=ctx.createBufferSource();
+    src.buffer=buf;
+
+    // BandPass ให้ฟังดูเป็น mechanical thud
+    const bp=ctx.createBiquadFilter();
+    bp.type='bandpass'; bp.frequency.value=180; bp.Q.value=1.2;
+
+    const gain=ctx.createGain();
+    gain.gain.setValueAtTime(vol,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.06);
+
+    src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
+    src.start(); src.stop(ctx.currentTime+0.07);
+
+    // เสียงตุ้ม low thud ซ้อน
+    const osc=ctx.createOscillator(), og=ctx.createGain();
+    osc.type='sine'; osc.frequency.value=90;
+    og.gain.setValueAtTime(vol*0.6,ctx.currentTime);
+    og.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.08);
+    osc.connect(og); og.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+0.08);
+  }catch(e){}
 }
+
+// เสียงหวีด ปู๊น! (รถไฟเบรก)
+function playTrainWhistle(){
+  if(!soundEnabled)return;
+  try{
+    const ctx=getCtx();
+    // หวีดสูง ลดระดับลง
+    const freqs=[880,1100,660];
+    freqs.forEach((f,i)=>{
+      const osc=ctx.createOscillator(), g=ctx.createGain();
+      osc.type='sawtooth'; osc.frequency.value=f;
+      osc.frequency.exponentialRampToValueAtTime(f*0.7, ctx.currentTime+0.8);
+      g.gain.setValueAtTime(0.0,ctx.currentTime+i*0.05);
+      g.gain.linearRampToValueAtTime(0.22-i*0.04, ctx.currentTime+i*0.05+0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.9);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(ctx.currentTime+i*0.05);
+      osc.stop(ctx.currentTime+1.0);
+    });
+  }catch(e){}
+}
+
+// เริ่มเสียง chug-chug ต่อเนื่อง (เรียกตอนเริ่ม free spin)
+function startChugLoop(initialIntervalMs=140){
+  stopChugLoop();
+  let interval=initialIntervalMs;
+  playChug(0.15);
+  _chugInterval=setInterval(()=>{
+    playChug(0.18);
+  }, interval);
+}
+
+// เร่งเสียง chug (ตอนล้อเร็วขึ้น)
+function setChugSpeed(intervalMs){
+  if(!_chugInterval)return;
+  stopChugLoop();
+  _chugInterval=setInterval(()=>playChug(0.2), Math.max(intervalMs,60));
+}
+
+function stopChugLoop(){
+  if(_chugInterval){clearInterval(_chugInterval);_chugInterval=null;}
+}
+
+// เสียงประกอบตอน snap (ช้าลง → หวีด)
+function playSpinSound(){
+  stopChugLoop();
+  // เสียง chug ช้าลง 5 ครั้ง
+  [0,0.18,0.38,0.62,0.9].forEach((t,i)=>{
+    setTimeout(()=>playChug(0.15-i*0.02), t*1000);
+  });
+  // หวีดปู๊นตอนจวนจะหยุด
+  setTimeout(()=>playTrainWhistle(), 600);
+}
+
 
 function playWinSound(id){
   if(id===1){
@@ -511,6 +594,7 @@ function animateIndefinite(){
   _freeSpinStop=false;
   const canvas=document.getElementById('wheelCanvas');
   canvas.classList.add('spinning');
+  startChugLoop(130); // เริ่มเสียง chug-chug
   let last=null;
   const RPM=1.8; // รอบต่อวินาที
   const dps=RPM*360/1000; // องศา/ms
@@ -531,6 +615,7 @@ function animateIndefinite(){
 function stopIndefinite(){
   _freeSpinStop=true;
   if(_freeSpinRaf)cancelAnimationFrame(_freeSpinRaf);
+  stopChugLoop();
 }
 
 
