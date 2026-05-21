@@ -211,6 +211,7 @@
   <div class="result-inner">
     <div class="result-congrats">🎉 ยินดีด้วย! 🎉</div>
     <div class="result-title">คุณได้รับรางวัล!</div>
+    <div id="result-spin-number" style="display:none;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.35);border-radius:20px;padding:4px 16px;font-size:0.85rem;color:var(--gold);font-weight:700;letter-spacing:1px"></div>
     <div class="result-prize-card">
       <span class="result-prize-emoji" id="result-emoji">🎁</span>
       <div class="result-prize-label">รางวัลของคุณ</div>
@@ -462,7 +463,7 @@ async function startSpin(){
       const res=await callAPI('spin',{userId:lineUserId,...(token?{token}:{})});
       if(!res.success)throw new Error(res.message||'ไม่สามารถหมุนได้');
       prizeIndex=PRIZES.findIndex(p=>p.id===res.prizeId);
-      spinResult={...PRIZES[prizeIndex],rewardCode:res.rewardCode};
+      spinResult={...PRIZES[prizeIndex],rewardCode:res.rewardCode,spinNumber:res.spinNumber};
       showScreen('wheel');
     }
     clearInterval(tokenTimer);
@@ -519,6 +520,9 @@ function showResult(prize){
   document.getElementById('result-prize-name').textContent=prize.name;
   document.getElementById('result-prize-desc').textContent=prize.desc;
   document.getElementById('result-code').textContent=prize.rewardCode;
+  const snEl=document.getElementById('result-spin-number');
+  if(prize.spinNumber){snEl.textContent=`🎯 การออกรางวัลครั้งที่ #${prize.spinNumber}`;snEl.style.display='block';}
+  else snEl.style.display='none';
   showScreen('result'); launchConfetti(); createFireworks();
 }
 
