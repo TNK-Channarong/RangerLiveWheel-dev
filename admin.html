@@ -220,6 +220,7 @@
         <table>
           <thead>
             <tr>
+              <th>#</th>
               <th>Line User ID</th>
               <th>รางวัล</th>
               <th>รหัส</th>
@@ -472,9 +473,10 @@ function renderPrizes(prizes){
 // =====================================================
 function renderPlayers(players){
   const tbody=document.getElementById('players-table');
-  if(!players||!players.length){tbody.innerHTML='<tr><td colspan="6" class="empty-state">ยังไม่มีผู้เล่น</td></tr>';return}
+  if(!players||!players.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">ยังไม่มีผู้เล่น</td></tr>';return}
   tbody.innerHTML=players.map(p=>`
     <tr>
+      <td style="text-align:center;font-weight:800;color:var(--gold)">${p.spinNumber||'–'}</td>
       <td style="font-family:monospace;font-size:0.75rem;color:var(--text-muted)">${maskId(p.userId)}</td>
       <td>${p.prizeName}</td>
       <td><span class="code-mono">${p.rewardCode}</span></td>
