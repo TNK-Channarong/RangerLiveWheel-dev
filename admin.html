@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{
     --brand:#0033CC;--brand-light:#1A4FE8;--gold:#FFD700;
@@ -183,6 +184,7 @@
     <div class="tabs">
       <button class="tab active" onclick="switchTab('overview')">📊 ภาพรวม</button>
       <button class="tab" onclick="switchTab('players')">👥 ผู้เล่น</button>
+      <button class="tab" onclick="switchTab('scan')">📷 สแกนรับ</button>
       <button class="tab" onclick="switchTab('qr')">📱 QR Code</button>
       <button class="tab" onclick="switchTab('settings')">⚙️ ตั้งค่า</button>
     </div>
@@ -233,6 +235,63 @@
             <tr><td colspan="6" class="loading-text">กำลังโหลด...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- TAB: SCAN รับรางวัล -->
+    <div class="tab-content" id="tab-scan">
+      <div class="qr-card" style="max-width:420px;margin:0 auto">
+        <div class="qr-title">📷 สแกน QR รับรางวัล</div>
+        <div class="qr-sub">ให้ผู้เล่นแสดง QR แล้วกดปุ่มสแกน หรือพิมพ์รหัสเอง</div>
+
+        <!-- กล้องสแกน -->
+        <div id="scan-reader-wrap" style="width:100%;max-width:300px;margin:16px auto;border-radius:16px;overflow:hidden;border:2px solid rgba(255,215,0,0.3);display:none">
+          <div id="scan-reader" style="width:100%"></div>
+        </div>
+
+        <!-- Manual input -->
+        <div style="width:100%;display:flex;gap:8px;margin-top:8px">
+          <input id="scan-code-input" class="settings-input" placeholder="พิมพ์รหัสรางวัล เช่น LA-ABC123"
+            style="flex:1;text-transform:uppercase;letter-spacing:2px;font-family:monospace"
+            oninput="this.value=this.value.toUpperCase()"
+            onkeydown="if(event.key==='Enter')lookupCode()">
+          <button class="btn btn-primary" onclick="lookupCode()">🔍 ตรวจสอบ</button>
+        </div>
+        <button class="btn btn-ghost" id="scan-camera-btn" onclick="toggleCamera()" style="width:100%;margin-top:8px">📷 เปิดกล้องสแกน QR</button>
+
+        <!-- ผลการตรวจสอบ -->
+        <div id="scan-result-box" style="display:none;width:100%;margin-top:16px;border-radius:14px;padding:16px;border:1px solid var(--border);background:var(--bg3)">
+          <div id="scan-status-icon" style="font-size:2.5rem;margin-bottom:8px"></div>
+          <div id="scan-prize-info" style="font-size:1rem;font-weight:700;margin-bottom:4px"></div>
+          <div id="scan-spin-number" style="font-size:0.8rem;color:var(--gold);margin-bottom:8px"></div>
+          <div id="scan-status-text" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;font-family:'Sarabun',sans-serif"></div>
+          <button id="scan-confirm-btn" class="btn btn-success" onclick="confirmClaim()" style="width:100%;display:none">✅ ยืนยันรับรางวัล</button>
+          <div id="scan-claimed-badge" style="display:none;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:8px 16px;color:var(--success);font-weight:700">✓ รับรางวัลแล้ว</div>
+        </div>
+      </div>
+
+      <!-- ตารางสรุปสถานะ claimed ล่าสุด -->
+      <div style="margin-top:24px">
+        <div class="section-header">
+          <div class="section-title">🏷️ สถานะการรับรางวัล</div>
+          <button class="btn btn-ghost" onclick="loadStats()" style="font-size:0.8rem;padding:6px 12px">🔄 รีเฟรช</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>รหัส</th>
+                <th>รางวัล</th>
+                <th>สถานะ</th>
+                <th>เวลารับ</th>
+              </tr>
+            </thead>
+            <tbody id="claim-status-table">
+              <tr><td colspan="5" class="loading-text">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -403,7 +462,7 @@ async function loadStats(){
     renderStats(res);
     renderPrizes(res.prizes);
     renderCharts(res);
-    renderPlayers(allPlayers);
+    renderPlayers(allPlayers); renderClaimTable();
     if(res.expiryDate&&res.expiryDate!=='ไม่ได้กำหนด') document.getElementById('expiry-date-input').value=res.expiryDate;
     if(res.tokenMins) document.getElementById('token-mins-input').value=res.tokenMins;
     if(res.liffUrl) document.getElementById('liff-url-display').textContent=res.liffUrl;
@@ -601,10 +660,123 @@ async function confirmReset(){
 // UTILS
 // =====================================================
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['overview','players','qr','settings'][i]===name));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['overview','players','scan','qr','settings'][i]===name));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
+  if(name!=='scan') stopCamera();
 }
+
+// =====================================================
+// 📷 QR SCAN & CLAIM
+// =====================================================
+let html5QrCode=null, cameraOn=false, currentLookupCode=null;
+
+function toggleCamera(){
+  cameraOn ? stopCamera() : startCamera();
+}
+
+function startCamera(){
+  const wrap=document.getElementById('scan-reader-wrap');
+  wrap.style.display='block';
+  document.getElementById('scan-camera-btn').textContent='⏹️ ปิดกล้อง';
+  html5QrCode = new Html5Qrcode('scan-reader');
+  html5QrCode.start(
+    {facingMode:'environment'},
+    {fps:10, qrbox:{width:220,height:220}},
+    (decodedText)=>{
+      document.getElementById('scan-code-input').value=decodedText.trim().toUpperCase();
+      stopCamera();
+      lookupCode();
+    },
+    ()=>{}
+  ).catch(()=>showToast('❌ ไม่สามารถเปิดกล้องได้','error'));
+  cameraOn=true;
+}
+
+function stopCamera(){
+  if(html5QrCode && cameraOn){
+    html5QrCode.stop().catch(()=>{});
+    cameraOn=false;
+    document.getElementById('scan-camera-btn').textContent='📷 เปิดกล้องสแกน QR';
+    document.getElementById('scan-reader-wrap').style.display='none';
+  }
+}
+
+async function lookupCode(){
+  const code=document.getElementById('scan-code-input').value.trim().toUpperCase();
+  if(!code){showToast('กรุณาใส่รหัสรางวัล','error');return}
+  const box=document.getElementById('scan-result-box');
+  box.style.display='block';
+  document.getElementById('scan-status-icon').textContent='⏳';
+  document.getElementById('scan-prize-info').textContent='กำลังตรวจสอบ...';
+  document.getElementById('scan-status-text').textContent='';
+  document.getElementById('scan-spin-number').textContent='';
+  document.getElementById('scan-confirm-btn').style.display='none';
+  document.getElementById('scan-claimed-badge').style.display='none';
+  try{
+    const res=await callAPI({action:'admin',subAction:'claimLookup',password:ADMIN_CONFIG.PASSWORD,rewardCode:code});
+    if(!res.success||!res.found){
+      box.style.borderColor='var(--danger)';
+      document.getElementById('scan-status-icon').textContent='❌';
+      document.getElementById('scan-prize-info').textContent='ไม่พบรหัสนี้ในระบบ';
+      document.getElementById('scan-status-text').textContent=res.message||'กรุณาตรวจสอบรหัสอีกครั้ง';
+      currentLookupCode=null; return;
+    }
+    currentLookupCode=code;
+    document.getElementById('scan-spin-number').textContent=`#${res.spinNumber||'?'} — ${formatDate(res.timestamp)}`;
+    document.getElementById('scan-prize-info').textContent=`${res.prizeName}`;
+    if(res.status==='claimed'){
+      box.style.borderColor='rgba(16,185,129,0.5)';
+      document.getElementById('scan-status-icon').textContent='✅';
+      document.getElementById('scan-status-text').textContent='รหัสนี้รับรางวัลไปแล้ว';
+      document.getElementById('scan-claimed-badge').style.display='block';
+    }else{
+      box.style.borderColor='rgba(255,215,0,0.5)';
+      document.getElementById('scan-status-icon').textContent='🎁';
+      document.getElementById('scan-status-text').textContent='รหัสยังไม่ได้รับรางวัล — กดยืนยันเพื่อบันทึก';
+      document.getElementById('scan-confirm-btn').style.display='block';
+    }
+  }catch(e){showToast('❌ '+e.message,'error')}
+}
+
+async function confirmClaim(){
+  if(!currentLookupCode)return;
+  document.getElementById('scan-confirm-btn').disabled=true;
+  try{
+    const res=await callAPI({action:'admin',subAction:'claimPrize',password:ADMIN_CONFIG.PASSWORD,rewardCode:currentLookupCode});
+    if(res.success){
+      showToast(`✅ ยืนยันรับรางวัล #${res.spinNumber} แล้ว!`,'success');
+      document.getElementById('scan-status-icon').textContent='✅';
+      document.getElementById('scan-status-text').textContent='บันทึกสำเร็จ!';
+      document.getElementById('scan-confirm-btn').style.display='none';
+      document.getElementById('scan-claimed-badge').style.display='block';
+      document.getElementById('scan-result-box').style.borderColor='rgba(16,185,129,0.5)';
+      document.getElementById('scan-code-input').value='';
+      currentLookupCode=null;
+      setTimeout(()=>{ loadStats(); renderClaimTable(); },1000);
+    }else{
+      showToast('❌ '+res.message,'error');
+      document.getElementById('scan-confirm-btn').disabled=false;
+    }
+  }catch(e){
+    showToast('❌ '+e.message,'error');
+    document.getElementById('scan-confirm-btn').disabled=false;
+  }
+}
+
+function renderClaimTable(){
+  const tbody=document.getElementById('claim-status-table');
+  if(!allPlayers||!allPlayers.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">ยังไม่มีข้อมูล</td></tr>';return}
+  tbody.innerHTML=allPlayers.map(p=>`
+    <tr>
+      <td style="text-align:center;font-weight:800;color:var(--gold)">${p.spinNumber||'–'}</td>
+      <td><span class="code-mono" style="font-size:0.8rem">${p.rewardCode}</span></td>
+      <td>${p.prizeName}</td>
+      <td><span class="badge ${p.status==='claimed'?'badge-claimed':p.status?.includes('cancel')?'badge-cancelled':'badge-pending'}">${p.status==='claimed'?'✓ รับแล้ว':p.status?.includes('cancel')?'❌ ยกเลิก':'⏳ รอรับ'}</span></td>
+      <td style="color:var(--text-muted);font-size:0.8rem">${p.claimedAt?formatDate(p.claimedAt):'–'}</td>
+    </tr>`).join('');
+}
+
 
 /*
 async function callAPI(body){
