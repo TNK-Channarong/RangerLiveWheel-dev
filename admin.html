@@ -904,11 +904,34 @@ async function lookupCode(){
   // แสดง loading
   _showScanResult({borderColor:'var(--border)',icon:'⏳',prizeName:'กำลังตรวจสอบ...',spinLabel:'',statusText:''});
 
-  try{
-    const res=await callAPI({action:'admin',subAction:'claimLookup',password:ADMIN_CONFIG.PASSWORD,rewardCode:code});
+  // retry สูงสุด 3 รอบ ห่างกัน 1.5 วิ กรณีข้อมูลยังไม่ sync
+  const MAX_RETRY = 3;
+  const RETRY_DELAY = 1500;
+  let res = null;
 
-    // ไม่พบรหัส
-    if(!res.success||!res.found){
+  for(let attempt = 1; attempt <= MAX_RETRY; attempt++){
+    try{
+      res = await callAPI({action:'admin',subAction:'claimLookup',password:ADMIN_CONFIG.PASSWORD,rewardCode:code});
+      if(res.success && res.found) break; // เจอแล้ว ออกจาก loop
+      if(attempt < MAX_RETRY){
+        _showScanResult({borderColor:'var(--border)',icon:'⏳',
+          prizeName:'กำลังตรวจสอบ...',spinLabel:'',
+          statusText:`รอข้อมูล sync (${attempt}/${MAX_RETRY})...`});
+        await new Promise(r=>setTimeout(r, RETRY_DELAY));
+      }
+    }catch(e){
+      if(attempt === MAX_RETRY){
+        _showScanResult({borderColor:'rgba(239,68,68,0.5)',icon:'❌',prizeName:'เกิดข้อผิดพลาด',statusText:e.message});
+        return;
+      }
+      await new Promise(r=>setTimeout(r, RETRY_DELAY));
+    }
+  }
+
+  try{
+
+    // ไม่พบรหัส (หลัง retry ครบแล้วยังไม่เจอ)
+    if(!res || !res.success || !res.found){
       _showScanResult({
         borderColor:'rgba(239,68,68,0.5)', icon:'❌',
         prizeName:'ไม่พบรหัสนี้ในระบบ',
