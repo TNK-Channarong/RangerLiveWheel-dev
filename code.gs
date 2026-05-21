@@ -61,6 +61,8 @@ function doGet(e) {
         case 'setDate':       return res(setExpiryDate(e.parameter.date));
         case 'setTokenMins':  return res(setTokenMins(e.parameter.mins));
         case 'cancelPlayer':  return res(cancelPlayer(e.parameter.userId));
+        case 'claimPrize':    return res(adminClaimPrize(e.parameter.rewardCode));
+        case 'claimLookup':   return res(claimLookup(e.parameter.rewardCode));
         case 'genQR':         return res(generateQRToken());
         case 'exportCSV':     return res(exportPlayersCSV());
         default:              return res({ success:false, message:'Unknown subAction' });
@@ -71,6 +73,7 @@ function doGet(e) {
     if (action === 'check') return res(checkPlayer(e.parameter.userId, e.parameter.token));
     if (action === 'prizes') return res(getPrizes());
     if (action === 'spin')   return res(handleSpin(e.parameter.userId, e.parameter.token));
+    if (action === 'claim')  return res(claimPrize(e.parameter.rewardCode, e.parameter.userId));
 
     return res({ success:true, message:'Lucky Wheel API v2.0' });
   } catch(err) {
@@ -125,7 +128,9 @@ function checkPlayer(userId, token) {
         status:      'played',
         prizeName:   rows[i][2],
         rewardCode:  rows[i][3],
-        timestamp:   rows[i][4]
+        timestamp:   rows[i][4],
+        claimStatus: rows[i][6],   // 'pending' or 'claimed'
+        spinNumber:  rows[i][8]
       };
     }
   }
@@ -134,7 +139,8 @@ function checkPlayer(userId, token) {
   return {
     status:      'new',
     prizes,
-    tokenExpiry: tokenExpiry || null
+    tokenExpiry: tokenExpiry || null,
+    expiryDate:  config.expiryDate || null
   };
 }
 
@@ -240,12 +246,13 @@ function getNextSpinNumber() {
 }
 
 function savePlayerResult(userId, prize, rewardCode, spinNumber) {
-  SpreadsheetApp.openById(SHEET_FILEID)
-    .getSheetByName(SHEET_PLAYERS)
+  const ss = SpreadsheetApp.openById(SHEET_FILEID);
+  ss.getSheetByName(SHEET_PLAYERS)
     .appendRow([
       userId, '', prize.name, rewardCode,
-      new Date(), prize.id, 'pending', 'active', spinNumber  // col I = spinNumber
+      new Date(), prize.id, 'pending', 'active', spinNumber
     ]);
+  SpreadsheetApp.flush(); // บังคับ write ลง Sheet ทันที ก่อน return
 }
 
 function decrementPrize(prizeId) {
@@ -535,9 +542,9 @@ function getAdminStats() {
   }
 
   const activePlayers = playerRows.slice(1).filter(r => r[7] !== 'cancelled');
-  const recentPlayers = activePlayers.slice(-10).reverse().map(r => ({
+  const recentPlayers = activePlayers.slice(-50).reverse().map(r => ({
     userId:r[0], prizeName:r[2], rewardCode:r[3],
-    timestamp:r[4], status:r[6], spinNumber:r[8]
+    timestamp:r[4], status:r[6], spinNumber:r[8], claimedAt:r[9]||null
   }));
 
   // Prize distribution for chart
@@ -579,6 +586,53 @@ function resetCampaign() {
   return { success:true, message:'Reset รางวัลสำเร็จ' };
 }
 
+
+// =====================================================
+// 🎟️ CLAIM PRIZE (แอดมินสแกน QR ยืนยันรับรางวัล)
+// =====================================================
+function claimLookup(rewardCode) {
+  if (!rewardCode) return { success:false, message:'ไม่มีรหัส' };
+  SpreadsheetApp.flush(); // sync ก่อนอ่าน
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PLAYERS);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][3] === rewardCode && rows[i][7] !== 'cancelled') {
+      return {
+        success:    true,
+        found:      true,
+        rewardCode: rows[i][3],
+        prizeName:  rows[i][2],
+        prizeId:    rows[i][5],
+        spinNumber: rows[i][8],
+        timestamp:  rows[i][4],
+        status:     rows[i][6],
+        userId:     rows[i][0],
+        rowIndex:   i + 1
+      };
+    }
+  }
+  return { success:true, found:false, message:'ไม่พบรหัสนี้ในระบบ' };
+}
+
+function adminClaimPrize(rewardCode) {
+  if (!rewardCode) return { success:false, message:'ไม่มีรหัส' };
+  const lookup = claimLookup(rewardCode);
+  if (!lookup.found) return { success:false, message: lookup.message || 'ไม่พบรหัสนี้' };
+  if (lookup.status === 'claimed') return { success:false, message:'รางวัลนี้ถูกรับไปแล้ว', alreadyClaimed:true };
+
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PLAYERS);
+  sheet.getRange(lookup.rowIndex, 7).setValue('claimed');       // col G = status
+  sheet.getRange(lookup.rowIndex, 10).setValue(new Date());     // col J = claimedAt
+  SpreadsheetApp.flush();
+  logAction('CLAIM', `Claimed: ${rewardCode} | Prize: ${lookup.prizeName} | #${lookup.spinNumber}`);
+  return { success:true, message:'ยืนยันรับรางวัลสำเร็จ!', prizeName:lookup.prizeName, spinNumber:lookup.spinNumber };
+}
+
+// Player-side claim (called from QR scan link - future use)
+function claimPrize(rewardCode, userId) {
+  return adminClaimPrize(rewardCode);
+}
+
 // =====================================================
 // LOG
 // =====================================================
@@ -600,17 +654,17 @@ function setupSheets() {
   s.clearContents();
   s.getRange(1,1,1,9).setValues([['id','name','desc','emoji','color','total','remaining','weight','active']]);
   s.getRange(2,1,5,9).setValues([
-    [1,'Live Ads','มูลค่า 500 บาท','📺','#FFD700',30,30,5,true],
+    [1,'Live Ad or Creative Ad','มูลค่า 500 บาท','📺','#FFD700',30,30,5,true],
     [2,'VC พิเศษ','คูปองมูลค่า 300 บาท','🎫','#00AAFF',30,30,10,true],
     [3,'สินค้าตัวอย่าง 3 ชิ้น','Extreme LVD / 12Hrs / Pet Coil','🎁','#FF6644',50,50,20,true],
     [4,'สินค้าตัวอย่าง 2 ชิ้น','Extreme LVD / 12Hrs','📦','#00CC66',80,80,40,true],
-    [5,'GWP','ไอเท็มช่วยชาย','⭐','#FF8800',10,10,25,true]
+    [5,'GWP','ไอเท็มช่วยขาย','⭐','#FF8800',10,10,25,true]
   ]);
 
   // players (col H = active/cancelled, col I = spinNumber)
   s = ss.getSheetByName(SHEET_PLAYERS) || ss.insertSheet(SHEET_PLAYERS);
   s.clearContents();
-  s.getRange(1,1,1,9).setValues([['lineUserId','displayName','prizeName','rewardCode','timestamp','prizeId','status','activeFlag','spinNumber']]);
+  s.getRange(1,1,1,10).setValues([['lineUserId','displayName','prizeName','rewardCode','timestamp','prizeId','status','activeFlag','spinNumber','claimedAt']]);
 
   // config
   s = ss.getSheetByName(SHEET_CONFIG) || ss.insertSheet(SHEET_CONFIG);
