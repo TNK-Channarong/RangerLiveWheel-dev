@@ -286,14 +286,14 @@ const CONFIG = {
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzJE_C-A8WFW9Ys4UoIfguQK65_K5xpgLUKW-5dR-NQs_o40Z0cpUaPNfTwmvOXyGcPrA/exec',
 
   // ← true = ทดสอบโดยไม่ต้องมี LIFF/API จริง, เปลี่ยนเป็น false เวลา deploy จริง
-  DEMO_MODE: false
+  DEMO_MODE: true
 };
 
 // Live Wheel
 /*const CONFIG = {
   LIFF_ID: '2010102212-BxhzRPQ9',
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyi4G4kURShP-wks_KLkVn6_j3R_K0oyfefHpAFWAN4_QXK7BBL-DExTOvrZusyBv62Pw/exec',
-  DEMO_MODE: true
+  DEMO_MODE: false
 };
 */
   
@@ -548,12 +548,9 @@ async function initGame(){
       // มี QR token — นับแบบ strict (หมดแล้ว block)
       startTokenCountdown(res.tokenExpiry, res.tokenExpiry - Date.now(), 'token');
     } else if(res.expiryDate){
-      // ไม่มี token — นับจาก campaign expiry แบบ soft (กระตุ้นเฉยๆ)
-      const exp = new Date(res.expiryDate);
-      exp.setHours(23,59,59,999); // ถึงสิ้นวัน
-      const now = Date.now();
-      const totalMs = exp.getTime() - now;
-      if(totalMs > 0) startTokenCountdown(exp.getTime(), totalMs, 'campaign');
+      // ไม่มี token — นับ 3 นาที กระตุ้นผู้เล่น
+      const totalMs = 3 * 60 * 1000;
+      startTokenCountdown(Date.now() + totalMs, totalMs, 'campaign');
     }
     if(res.prizes)updatePrizes(res.prizes);
     drawWheel();renderPrizeList();showScreen('wheel');
