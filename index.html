@@ -189,6 +189,7 @@
     <div class="wheel-center">SPIN<br>NOW</div>
   </div>
   <button class="spin-btn" id="spinBtn" onclick="startSpin()">🎰 แตะหมุนล้อตรงนี้จ้า!</button>
+  <div id="api-status" style="display:none;font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:6px;font-family:'Sarabun',sans-serif;animation:pulse 1s ease-in-out infinite">⏳ กำลังตรวจสอบผล...</div>
   <!--
   <div class="prizes-section">
     <div class="prizes-title">รางวัลทั้งหมด</div>
@@ -197,12 +198,6 @@
   -->
 </div>
 
-<!-- SPINNING -->
-<div class="screen hidden" id="screen-spinning">
-  <div class="spinning-anim">🎡</div>
-  <div class="spinning-text">กำลังหมุนวงล้อ...</div>
-  <div class="spinning-sub">โชคดีนะครับ! 🍀</div>
-</div>
 
 <!-- RESULT -->
 <div class="screen hidden" id="screen-result">
@@ -452,29 +447,92 @@ async function startSpin(){
   if(tokenExpiry&&Date.now()>tokenExpiry){showScreen('token-expired');return}
   isSpinning=true; playClick();
   document.getElementById('spinBtn').disabled=true;
+
   try{
     let prizeIndex;
+
     if(CONFIG.DEMO_MODE){
       prizeIndex=getDemoPrize();
       spinResult={...PRIZES[prizeIndex],rewardCode:genCode(PRIZES[prizeIndex])};
+      clearInterval(tokenTimer);
+      document.getElementById('tokenBarWrap').style.display='none';
+      playSpinSound();
+      await animateTo(prizeIndex);
+      playWinSound(spinResult.id);
+      showResult(spinResult);
     }else{
-      showScreen('spinning');
-      const token=getToken();
-      const res=await callAPI('spin',{userId:lineUserId,...(token?{token}:{})});
-      if(!res.success)throw new Error(res.message||'ไม่สามารถหมุนได้');
-      prizeIndex=PRIZES.findIndex(p=>p.id===res.prizeId);
-      spinResult={...PRIZES[prizeIndex],rewardCode:res.rewardCode,spinNumber:res.spinNumber};
-      showScreen('wheel');
+      // ── ตัวจริง: เริ่มหมุนวงล้อ + call API พร้อมกัน ──
+      clearInterval(tokenTimer);
+      document.getElementById('tokenBarWrap').style.display='none';
+
+      const token = getToken();
+
+      // แสดงข้อความรอเล็กๆ ใต้ปุ่ม
+      const statusEl = document.getElementById('api-status');
+      if(statusEl) statusEl.style.display='block';
+
+      // หมุนล้อ "ไม่รู้ผล" ก่อน (random ช้าๆ อย่างน้อย MIN_SPIN_MS)
+      const MIN_SPIN_MS = 3000;
+      const apiPromise  = callAPI('spin',{userId:lineUserId,...(token?{token}:{})});
+      const spinPromise = animateIndefinite(); // หมุนแบบ free spin
+
+      // รอ API กลับมา (แต่อย่างน้อย MIN_SPIN_MS)
+      const [res] = await Promise.all([
+        apiPromise,
+        new Promise(r=>setTimeout(r, MIN_SPIN_MS))
+      ]);
+
+      if(!res.success) throw new Error(res.message||'ไม่สามารถหมุนได้');
+
+      // ซ่อนข้อความรอ
+      if(statusEl) statusEl.style.display='none';
+
+      prizeIndex = PRIZES.findIndex(p=>p.id===res.prizeId);
+      spinResult = {...PRIZES[prizeIndex], rewardCode:res.rewardCode, spinNumber:res.spinNumber};
+
+      // หยุด free spin แล้ว snap ไปที่ช่องที่ถูก
+      stopIndefinite();
+      playSpinSound();
+      await animateTo(prizeIndex);
+      playWinSound(spinResult.id);
+      showResult(spinResult);
     }
-    clearInterval(tokenTimer);
-    document.getElementById('tokenBarWrap').style.display='none';
-    playSpinSound();
-    await animateTo(prizeIndex);
-    playWinSound(spinResult.id);
-    showResult(spinResult);
-  }catch(e){showError(e.message||'เกิดข้อผิดพลาด')}
-  finally{isSpinning=false}
+  }catch(e){
+    stopIndefinite();
+    const statusEl = document.getElementById('api-status');
+    if(statusEl) statusEl.style.display='none';
+    showError(e.message||'เกิดข้อผิดพลาด');
+  }finally{isSpinning=false}
 }
+
+// ── หมุนฟรีแบบต่อเนื่องจนกว่าจะสั่งหยุด ──
+let _freeSpinRaf=null, _freeSpinStop=false;
+function animateIndefinite(){
+  _freeSpinStop=false;
+  const canvas=document.getElementById('wheelCanvas');
+  canvas.classList.add('spinning');
+  let last=null;
+  const RPM=1.8; // รอบต่อวินาที
+  const dps=RPM*360/1000; // องศา/ms
+  return new Promise(resolve=>{
+    function frame(ts){
+      if(last!==null){
+        const dt=ts-last;
+        wheelAngle+=(dps*dt)*(Math.PI/180);
+        drawWheel();
+      }
+      last=ts;
+      if(_freeSpinStop){canvas.classList.remove('spinning');resolve();return}
+      _freeSpinRaf=requestAnimationFrame(frame);
+    }
+    _freeSpinRaf=requestAnimationFrame(frame);
+  });
+}
+function stopIndefinite(){
+  _freeSpinStop=true;
+  if(_freeSpinRaf)cancelAnimationFrame(_freeSpinRaf);
+}
+
 
 function getDemoPrize(){
   const w=[5,10,20,40,25],t=w.reduce((a,b)=>a+b,0);
@@ -494,19 +552,25 @@ function genCode(prize){
 function animateTo(prizeIndex){
   return new Promise(resolve=>{
     const arc=360/PRIZES.length;
-    const targetDeg=(5+Math.random()*3)*360-(prizeIndex*arc+arc/2);
+    // คำนวณมุมเป้าหมาย snap จากมุมปัจจุบันที่กำลังหมุน
+    const targetSlotDeg = prizeIndex*arc + arc/2;
+    const currentDeg    = ((wheelAngle*(180/Math.PI))%360+360)%360;
+    // หมุนเพิ่ม 2 รอบ แล้วหยุดที่ช่องที่ถูก (pointer อยู่บนสุด = 360-targetSlotDeg)
+    const stopAt  = (360-targetSlotDeg+360)%360;
+    const needed  = (stopAt - currentDeg + 360*3)%360 + 360*2;
     const canvas=document.getElementById('wheelCanvas');
     canvas.classList.add('spinning');
     let t0=null;
-    const dur=4500,startDeg=wheelAngle*(180/Math.PI);
+    const dur=3600;
+    const startDeg=currentDeg;
     const ease=t=>1-Math.pow(1-t,4);
     function frame(ts){
       if(!t0)t0=ts;
       const prog=Math.min((ts-t0)/dur,1);
-      const deg=startDeg+targetDeg*ease(prog);
-      wheelAngle=deg*Math.PI/180; drawWheel();
+      const deg=startDeg+needed*ease(prog);
+      wheelAngle=deg*(Math.PI/180); drawWheel();
       if(prog<1)requestAnimationFrame(frame);
-      else{canvas.classList.remove('spinning');wheelAngle=((deg%360)*Math.PI/180);resolve()}
+      else{canvas.classList.remove('spinning');wheelAngle=(deg%360)*(Math.PI/180);resolve();}
     }
     requestAnimationFrame(frame);
   });
