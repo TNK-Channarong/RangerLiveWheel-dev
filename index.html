@@ -131,7 +131,10 @@
   .retry-btn{margin-top:20px;padding:12px 32px;background:var(--brand);border:none;border-radius:24px;color:white;font-family:'Kanit',sans-serif;font-size:1rem;font-weight:700;cursor:pointer}
   @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes bounce-in{from{opacity:0;transform:scale(0)}to{opacity:1;transform:scale(1)}}
+  .qr-claim-box{background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .qr-claim-hint{font-size:0.75rem;color:var(--text-muted);text-align:center;font-family:'Sarabun',sans-serif;line-height:1.5}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -221,6 +224,13 @@
       </div>
       <div class="result-note">* เก็บรหัสนี้ไว้เพื่อยืนยันการรับรางวัล</div>
     </div>
+    <div class="qr-claim-section" id="qr-claim-section" style="width:100%;animation:fadeInUp 0.5s ease 0.6s both">
+      <div class="result-code-label">📲 QR สำหรับให้แอดมินสแกน</div>
+      <div class="qr-claim-box">
+        <div id="result-qr-container" style="background:#fff;padding:10px;border-radius:12px;display:inline-block"></div>
+        <div class="qr-claim-hint">แสดง QR นี้ให้ทีมงานสแกนเพื่อยืนยันรับรางวัล</div>
+      </div>
+    </div>
     <div class="screenshot-tip">
       <div class="screenshot-tip-icon">📸</div>
       <div class="screenshot-tip-text"><strong>ถ่ายภาพหน้าจอ</strong>หน้านี้เก็บไว้<br>นำไปแสดงกับทีมงานเพื่อรับรางวัล</div>
@@ -252,7 +262,7 @@ const CONFIG = {
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzJE_C-A8WFW9Ys4UoIfguQK65_K5xpgLUKW-5dR-NQs_o40Z0cpUaPNfTwmvOXyGcPrA/exec',
 
   // ← true = ทดสอบโดยไม่ต้องมี LIFF/API จริง, เปลี่ยนเป็น false เวลา deploy จริง
-  DEMO_MODE: false
+  DEMO_MODE: true
 };
 
 // Live Wheel
@@ -672,6 +682,17 @@ function showResult(prize){
   const snEl=document.getElementById('result-spin-number');
   if(prize.spinNumber){snEl.textContent=`🎯 การออกรางวัลครั้งที่ #${prize.spinNumber}`;snEl.style.display='block';}
   else snEl.style.display='none';
+
+  // สร้าง QR code จาก rewardCode
+  const qrContainer=document.getElementById('result-qr-container');
+  qrContainer.innerHTML='';
+  new QRCode(qrContainer,{
+    text: prize.rewardCode,
+    width:160, height:160,
+    colorDark:'#000000', colorLight:'#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
   showScreen('result'); launchConfetti(); createFireworks();
 }
 
