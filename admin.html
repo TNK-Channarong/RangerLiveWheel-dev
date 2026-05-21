@@ -209,7 +209,6 @@
     <div class="navbar-brand">🎡 Ranger Live Wheel-Admin</div>
     <div class="navbar-actions">
       <button class="btn btn-ghost" onclick="loadStats()">🔄</button>
-      <button class="btn btn-warning" onclick="showResetModal()">⚠️ Reset</button>
       <button class="btn btn-ghost" onclick="logout()">ออก</button>
     </div>
   </nav>
@@ -315,13 +314,12 @@
         <div id="scan-debug" style="display:none;font-size:0.75rem;color:var(--warning);background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.2);border-radius:8px;padding:8px 12px;margin-top:6px;font-family:'Sarabun',sans-serif;line-height:1.6"></div>
 
         <!-- ผลการตรวจสอบ -->
-        <div id="scan-result-box" style="display:none;width:100%;margin-top:16px;border-radius:14px;padding:16px;border:1px solid var(--border);background:var(--bg3)">
-          <div id="scan-status-icon" style="font-size:2.5rem;margin-bottom:8px"></div>
-          <div id="scan-prize-info" style="font-size:1rem;font-weight:700;margin-bottom:4px"></div>
+        <div id="scan-result-box" style="display:none;width:100%;margin-top:16px;border-radius:14px;padding:16px;border:1px solid var(--border);background:var(--bg3);position:relative">
+          <button onclick="closeScanResult()" style="position:absolute;top:10px;right:10px;background:rgba(255,255,255,0.08);border:none;color:var(--text-muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+          <div id="scan-status-icon" style="font-size:2.8rem;margin-bottom:8px"></div>
+          <div id="scan-prize-info" style="font-size:1.05rem;font-weight:700;margin-bottom:4px"></div>
           <div id="scan-spin-number" style="font-size:0.8rem;color:var(--gold);margin-bottom:8px"></div>
-          <div id="scan-status-text" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;font-family:'Sarabun',sans-serif"></div>
-          <button id="scan-confirm-btn" class="btn btn-success" onclick="confirmClaim()" style="width:100%;display:none">✅ ยืนยันรับรางวัล</button>
-          <div id="scan-claimed-badge" style="display:none;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:8px 16px;color:var(--success);font-weight:700">✓ รับรางวัลแล้ว</div>
+          <div id="scan-status-text" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0;font-family:'Sarabun',sans-serif;line-height:1.5"></div>
         </div>
       </div>
 
@@ -410,6 +408,13 @@
             <span style="font-size:0.75rem;color:var(--text-muted)">ดูวิธีหา Group ID ด้านล่าง ↓</span>
           </div>
         </div>
+      </div>
+
+      <!-- DANGER ZONE -->
+      <div class="settings-card" style="border-color:rgba(239,68,68,0.3)">
+        <div class="section-title" style="margin-bottom:4px;color:var(--danger)">⚠️ Danger Zone</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);font-family:'Sarabun',sans-serif;margin-bottom:14px;line-height:1.5">Reset จะคืนจำนวนรางวัลทั้งหมด ข้อมูลผู้เล่นจะยังอยู่</div>
+        <button class="btn btn-danger" onclick="showResetModal()" style="width:100%">⚠️ Reset รางวัลทั้งหมด</button>
       </div>
 
       <!-- Line Group Setup Guide -->
@@ -876,65 +881,87 @@ function stopCamera(){
   if(btn){ btn.textContent='📷 เปิดกล้องสแกน QR'; btn.disabled=false; }
 }
 
+function closeScanResult(){
+  document.getElementById('scan-result-box').style.display='none';
+  document.getElementById('scan-code-input').value='';
+  currentLookupCode=null;
+}
+
+function _showScanResult({borderColor, icon, prizeName, spinLabel, statusText}){
+  const box=document.getElementById('scan-result-box');
+  box.style.display='block';
+  box.style.borderColor=borderColor;
+  document.getElementById('scan-status-icon').textContent=icon;
+  document.getElementById('scan-prize-info').textContent=prizeName||'';
+  document.getElementById('scan-spin-number').textContent=spinLabel||'';
+  document.getElementById('scan-status-text').textContent=statusText||'';
+}
+
 async function lookupCode(){
   const code=document.getElementById('scan-code-input').value.trim().toUpperCase();
   if(!code){showToast('กรุณาใส่รหัสรางวัล','error');return}
-  const box=document.getElementById('scan-result-box');
-  box.style.display='block';
-  document.getElementById('scan-status-icon').textContent='⏳';
-  document.getElementById('scan-prize-info').textContent='กำลังตรวจสอบ...';
-  document.getElementById('scan-status-text').textContent='';
-  document.getElementById('scan-spin-number').textContent='';
-  document.getElementById('scan-confirm-btn').style.display='none';
-  document.getElementById('scan-claimed-badge').style.display='none';
+
+  // แสดง loading
+  _showScanResult({borderColor:'var(--border)',icon:'⏳',prizeName:'กำลังตรวจสอบ...',spinLabel:'',statusText:''});
+
   try{
     const res=await callAPI({action:'admin',subAction:'claimLookup',password:ADMIN_CONFIG.PASSWORD,rewardCode:code});
+
+    // ไม่พบรหัส
     if(!res.success||!res.found){
-      box.style.borderColor='var(--danger)';
-      document.getElementById('scan-status-icon').textContent='❌';
-      document.getElementById('scan-prize-info').textContent='ไม่พบรหัสนี้ในระบบ';
-      document.getElementById('scan-status-text').textContent=res.message||'กรุณาตรวจสอบรหัสอีกครั้ง';
+      _showScanResult({
+        borderColor:'rgba(239,68,68,0.5)', icon:'❌',
+        prizeName:'ไม่พบรหัสนี้ในระบบ',
+        statusText:res.message||'กรุณาตรวจสอบรหัสอีกครั้ง'
+      });
       currentLookupCode=null; return;
     }
-    currentLookupCode=code;
-    document.getElementById('scan-spin-number').textContent=`#${res.spinNumber||'?'} — ${formatDate(res.timestamp)}`;
-    document.getElementById('scan-prize-info').textContent=`${res.prizeName}`;
-    if(res.status==='claimed'){
-      box.style.borderColor='rgba(16,185,129,0.5)';
-      document.getElementById('scan-status-icon').textContent='✅';
-      document.getElementById('scan-status-text').textContent='รหัสนี้รับรางวัลไปแล้ว';
-      document.getElementById('scan-claimed-badge').style.display='block';
-    }else{
-      box.style.borderColor='rgba(255,215,0,0.5)';
-      document.getElementById('scan-status-icon').textContent='🎁';
-      document.getElementById('scan-status-text').textContent='รหัสยังไม่ได้รับรางวัล — กดยืนยันเพื่อบันทึก';
-      document.getElementById('scan-confirm-btn').style.display='block';
-    }
-  }catch(e){showToast('❌ '+e.message,'error')}
-}
 
-async function confirmClaim(){
-  if(!currentLookupCode)return;
-  document.getElementById('scan-confirm-btn').disabled=true;
-  try{
-    const res=await callAPI({action:'admin',subAction:'claimPrize',password:ADMIN_CONFIG.PASSWORD,rewardCode:currentLookupCode});
-    if(res.success){
-      showToast(`✅ ยืนยันรับรางวัล #${res.spinNumber} แล้ว!`,'success');
-      document.getElementById('scan-status-icon').textContent='✅';
-      document.getElementById('scan-status-text').textContent='บันทึกสำเร็จ!';
-      document.getElementById('scan-confirm-btn').style.display='none';
-      document.getElementById('scan-claimed-badge').style.display='block';
-      document.getElementById('scan-result-box').style.borderColor='rgba(16,185,129,0.5)';
+    const spinLabel=`ลำดับ #${res.spinNumber||'?'} — ${formatDate(res.timestamp)}`;
+
+    // รับรางวัลไปแล้ว
+    if(res.status==='claimed'){
+      _showScanResult({
+        borderColor:'rgba(16,185,129,0.4)', icon:'✅',
+        prizeName:res.prizeName, spinLabel,
+        statusText:'รหัสนี้รับรางวัลไปแล้ว'
+      });
+      currentLookupCode=null; return;
+    }
+
+    // ยังไม่ได้รับ → auto-claim ทันที
+    currentLookupCode=code;
+    _showScanResult({
+      borderColor:'rgba(255,215,0,0.4)', icon:'⏳',
+      prizeName:res.prizeName, spinLabel,
+      statusText:'กำลังยืนยัน...'
+    });
+
+    const claim=await callAPI({action:'admin',subAction:'claimPrize',password:ADMIN_CONFIG.PASSWORD,rewardCode:code});
+    if(claim.success){
+      _showScanResult({
+        borderColor:'rgba(16,185,129,0.6)', icon:'🎉',
+        prizeName:res.prizeName, spinLabel,
+        statusText:'✅ ยืนยันรับรางวัลสำเร็จแล้ว!'
+      });
       document.getElementById('scan-code-input').value='';
       currentLookupCode=null;
-      setTimeout(()=>{ loadStats(); renderClaimTable(); },1000);
+      // เปิดกล้องต่อหลัง 2 วิ
+      setTimeout(()=>{
+        loadStats(); renderClaimTable();
+        document.getElementById('scan-result-box').style.display='none';
+        if(!cameraOn) startCamera();
+      }, 2000);
     }else{
-      showToast('❌ '+res.message,'error');
-      document.getElementById('scan-confirm-btn').disabled=false;
+      _showScanResult({
+        borderColor:'rgba(239,68,68,0.5)', icon:'❌',
+        prizeName:res.prizeName, spinLabel,
+        statusText:claim.message||'ยืนยันไม่สำเร็จ'
+      });
+      currentLookupCode=null;
     }
   }catch(e){
-    showToast('❌ '+e.message,'error');
-    document.getElementById('scan-confirm-btn').disabled=false;
+    _showScanResult({borderColor:'rgba(239,68,68,0.5)',icon:'❌',prizeName:'เกิดข้อผิดพลาด',statusText:e.message});
   }
 }
 
