@@ -555,7 +555,7 @@ async function startSpin(){
       if(statusEl) statusEl.style.display='block';
 
       // หมุนล้อ "ไม่รู้ผล" ก่อน (random ช้าๆ อย่างน้อย MIN_SPIN_MS)
-      const MIN_SPIN_MS = 3000;
+      const MIN_SPIN_MS = 5000;
       const apiPromise  = callAPI('spin',{userId:lineUserId,...(token?{token}:{})});
       const spinPromise = animateIndefinite(); // หมุนแบบ free spin
 
@@ -642,11 +642,11 @@ function animateTo(prizeIndex){
     const currentDeg    = ((wheelAngle*(180/Math.PI))%360+360)%360;
     // หมุนเพิ่ม 2 รอบ แล้วหยุดที่ช่องที่ถูก (pointer อยู่บนสุด = 360-targetSlotDeg)
     const stopAt  = (360-targetSlotDeg+360)%360;
-    const needed  = (stopAt - currentDeg + 360*3)%360 + 360*2;
+    const needed  = (stopAt - currentDeg + 360*3)%360 + 360*4;
     const canvas=document.getElementById('wheelCanvas');
     canvas.classList.add('spinning');
     let t0=null;
-    const dur=3600;
+    const dur=5000;
     const startDeg=currentDeg;
     const ease=t=>1-Math.pow(1-t,4);
     function frame(ts){
