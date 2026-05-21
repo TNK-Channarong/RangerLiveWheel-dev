@@ -1,621 +1,644 @@
 // =====================================================
-// 🎡 วงล้อพาโชค — Google Apps Script Backend
-// Version: 1.0.0xx
+// 🎡 วงล้อพาโชค — Apps Script Backend v2.0
+// NEW: QR Token, Cancel Player, Line Group Notify
 // =====================================================
 
 // ===== CONFIG =====
-// ←Doc ID ของ Google Sheet
-const SHEET_ID = PropertiesService
-  .getScriptProperties()
-  .getProperty('SHEET_ID');
+const {
+  SHEET_FILEID,
+  LINE_CHANNEL_TOKEN  : LINE_CHANNEL_TOKEN,
+  LINE_GROUP_ID,
+  LINE_GROUP_ID1,
+  LINE_GROUP_ID2,
+  LINE_GROUP_ID3,
+  LINE_GROUP_ID4,
+  LINE_GROUP_ID5,
+  ADMIN_PASSWORD,
+} = PropertiesService.getScriptProperties().getProperties();
 
-//LINE_CHANNEL_ACCESS_TOKEN' (Line Messaging API Token)
-const LINE_CHANNEL_TOKEN = PropertiesService
-  .getScriptProperties()
-  .getProperty('LINE_TOKEN');
+function showLogConfig() {
+  console.log('=== Script properties ===');
+  console.log('SHEET_FILEID      :', SHEET_FILEID);
+  console.log('LINE_CHANNEL_TOKEN:', LINE_CHANNEL_TOKEN);
+  console.log('LINE_GROUP_ID     :', LINE_GROUP_ID);
+  console.log('LINE_GROUP_ID1    :', LINE_GROUP_ID1);
+  console.log('LINE_GROUP_ID2    :', LINE_GROUP_ID2);
+  console.log('LINE_GROUP_ID3    :', LINE_GROUP_ID3);
+  console.log('LINE_GROUP_ID4    :', LINE_GROUP_ID4);
+  console.log('LINE_GROUP_ID5    :', LINE_GROUP_ID5);
+  console.log('ADMIN_PASSWORD    :', ADMIN_PASSWORD);
+  console.log('==================');
+}
 
-// ← รหัสผ่าน Admin Panel
-const ADMIN_PASSWORD = 'admin1234';
+const LINE_GROUP_BY_PRIZE = {
+  1:  LINE_GROUP_ID1,
+  2:  LINE_GROUP_ID2,
+  3:  LINE_GROUP_ID3,
+  4:  LINE_GROUP_ID4,
+  5:  LINE_GROUP_ID5
+};
 
-// Sheet names
-const SHEET_PRIZES  = 'prizes';
-const SHEET_PLAYERS = 'players';
-const SHEET_CONFIG  = 'config';
-const SHEET_LOG     = 'log';
+const SHEET_PRIZES        = 'prizes';
+const SHEET_PLAYERS       = 'players';
+const SHEET_CONFIG        = 'config';
+const SHEET_TOKENS        = 'tokens';
+const SHEET_LOG           = 'log';
 
 // =====================================================
-// MAIN ENTRY — รับ HTTP requests
+// ROUTING
 // =====================================================
-function doPost(e) {
+function doGet(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
+    const action = e.parameter.action;
+    const pw     = e.parameter.password || e.parameter.pw;
 
-    let result;
-    switch (action) {
-      case 'check':   result = checkPlayer(data.userId); break;
-      case 'prizes':  result = getPrizes(); break;
-      case 'spin':    result = handleSpin(data.userId); break;
-      case 'admin':   result = handleAdmin(data); break;
-      default:        result = { success: false, message: 'Unknown action' };
+    // ── Admin routes ──
+    if (action === 'admin') {
+      if (pw !== ADMIN_PASSWORD) return res({ success:false, message:'Unauthorized' });
+      switch (e.parameter.subAction) {
+        case 'stats':         return res(getAdminStats());
+        case 'reset':         return res(resetCampaign());
+        case 'setDate':       return res(setExpiryDate(e.parameter.date));
+        case 'setTokenMins':  return res(setTokenMins(e.parameter.mins));
+        case 'cancelPlayer':  return res(cancelPlayer(e.parameter.userId));
+        case 'genQR':         return res(generateQRToken());
+        case 'exportCSV':     return res(exportPlayersCSV());
+        default:              return res({ success:false, message:'Unknown subAction' });
+      }
     }
 
-    return createResponse(result);
-  } catch (err) {
-    logError(err);
-    return createResponse({ success: false, message: 'Server error: ' + err.message });
+    // ── Player routes ──
+    if (action === 'check') return res(checkPlayer(e.parameter.userId, e.parameter.token));
+    if (action === 'prizes') return res(getPrizes());
+    if (action === 'spin')   return res(handleSpin(e.parameter.userId, e.parameter.token));
+
+    return res({ success:true, message:'Lucky Wheel API v2.0' });
+  } catch(err) {
+    logAction('ERROR', err.toString());
+    return res({ success:false, message:'Server error: ' + err.message });
   }
 }
 
-/*
-function doGet(e) {
-  // Admin panel GET (สำหรับ Admin UI ที่ทำแยกต่างหาก)
-  const action = e.parameter.action;
-  if (action === 'admin-stats') {
-    const pw = e.parameter.pw;
-    if (pw !== ADMIN_PASSWORD) return createResponse({ success: false, message: 'Unauthorized' });
-    return createResponse(getAdminStats());
+function doPost(e) {
+  // Legacy support — route through doGet logic
+  try {
+    const data   = JSON.parse(e.postData.contents);
+    const fakeE  = { parameter: data };
+    return doGet(fakeE);
+  } catch(err) {
+    return res({ success:false, message:'Parse error' });
   }
-  return createResponse({ success: true, message: 'Lucky Wheel API v1.0' });
-}*/
-function doGet(e) {
-  const action = e.parameter.action;
-  const pw = e.parameter.pw;
-
-  if (action === 'admin') {
-    if (pw !== ADMIN_PASSWORD) return createResponse({ success: false, message: 'Unauthorized' });
-    const subAction = e.parameter.subAction;
-    switch (subAction) {
-      case 'stats':   return createResponse(getAdminStats());
-      case 'reset':   return createResponse(resetCampaign({}));
-      case 'setDate': return createResponse(setExpiryDate(e.parameter.date));
-      default:        return createResponse({ success: false, message: 'Unknown subAction' });
-    }
-  }
-
-  if (action === 'check') {
-    return createResponse(checkPlayer(e.parameter.userId));
-  }
-
-  if (action === 'prizes') {
-    return createResponse(getPrizes());
-  }
-
-  if (action === 'spin') {
-    return createResponse(handleSpin(e.parameter.userId));
-  }
-
-  return createResponse({ success: true, message: 'Lucky Wheel API v1.0' });
 }
 
-
-function doOptions(e) {
-  return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT);
-}
-
-
-/*
-function createResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-*/
-function createResponse(data) {
+function res(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-
 // =====================================================
-// CHECK PLAYER — ตรวจสอบว่าเคยเล่นหรือยัง
+// CHECK PLAYER
 // =====================================================
-function checkPlayer(userId) {
-  if (!userId) return { status: 'error', message: 'No userId' };
+function checkPlayer(userId, token) {
+  if (!userId) return { status:'error', message:'No userId' };
 
   // Check campaign expiry
   const config = getConfig();
   if (config.expiryDate) {
-    const now = new Date();
-    const expiry = new Date(config.expiryDate);
-    if (now > expiry) return { status: 'expired' };
+    if (new Date() > new Date(config.expiryDate)) return { status:'expired' };
   }
 
-  // Check if played
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const playersSheet = ss.getSheetByName(SHEET_PLAYERS);
-  const data = playersSheet.getDataRange().getValues();
+  // Check QR token if provided
+  if (token) {
+    const tokenResult = validateToken(token);
+    if (!tokenResult.valid) return { status:'token-expired' };
+    // Return remaining time to frontend
+    var tokenExpiry = tokenResult.expiry;
+  }
 
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === userId) {
+  // Check if already played
+  const ss = SpreadsheetApp.openById(SHEET_FILEID);
+  const rows = ss.getSheetByName(SHEET_PLAYERS).getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === userId && rows[i][7] !== 'cancelled') {
       return {
-        status: 'played',
-        prizeName: data[i][2],
-        rewardCode: data[i][3],
-        timestamp: data[i][4]
+        status:      'played',
+        prizeName:   rows[i][2],
+        rewardCode:  rows[i][3],
+        timestamp:   rows[i][4]
       };
     }
   }
 
-  // New player — return prize list too
   const prizes = getPrizesData();
-  return { status: 'new', prizes };
+  return {
+    status:      'new',
+    prizes,
+    tokenExpiry: tokenExpiry || null
+  };
 }
 
 // =====================================================
-// GET PRIZES — ดึงข้อมูลรางวัลจาก Sheet
+// PRIZES
 // =====================================================
-function getPrizes() {
-  return { success: true, prizes: getPrizesData() };
-}
+function getPrizes() { return { success:true, prizes:getPrizesData() }; }
 
 function getPrizesData() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_PRIZES);
-  const data = sheet.getDataRange().getValues();
-  const prizes = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (!row[0]) continue;
-    prizes.push({
-      id:        row[0],   // A: ID
-      name:      row[1],   // B: ชื่อรางวัล
-      desc:      row[2],   // C: คำอธิบาย
-      emoji:     row[3],   // D: Emoji
-      color:     row[4],   // E: สี Hex
-      total:     row[5],   // F: จำนวนทั้งหมด
-      remaining: row[6],   // G: จำนวนที่เหลือ
-      weight:    row[7],   // H: น้ำหนัก (ยิ่งมาก = ออกบ่อย)
-      active:    row[8]    // I: TRUE/FALSE
-    });
-  }
-  return prizes;
+  const rows = SpreadsheetApp.openById(SHEET_FILEID)
+    .getSheetByName(SHEET_PRIZES).getDataRange().getValues();
+  return rows.slice(1).filter(r=>r[0]).map(r=>({
+    id:r[0], name:r[1], desc:r[2], emoji:r[3], color:r[4],
+    total:r[5], remaining:r[6], weight:r[7], active:r[8]
+  }));
 }
 
 // =====================================================
-// SPIN — หมุนวงล้อและออกรางวัล (Transaction-safe)
+// SPIN
 // =====================================================
-function handleSpin(userId) {
-  if (!userId) return { success: false, message: 'No userId' };
+function handleSpin(userId, token) {
+  if (!userId) return { success:false, message:'No userId' };
 
-  // Check again (double-check ป้องกัน race condition)
-  const checkResult = checkPlayer(userId);
-  if (checkResult.status === 'expired') return { success: false, message: 'Campaign หมดอายุแล้ว' };
-  if (checkResult.status === 'played')  return { success: false, message: 'คุณเคยเล่นไปแล้ว' };
+  // Re-validate token
+  if (token) {
+    const t = validateToken(token);
+    if (!t.valid) return { success:false, message:'QR Token หมดอายุแล้ว กรุณาสแกน QR ใหม่' };
+  }
 
-  // Lock: ใช้ LockService ป้องกัน concurrent spin
+  // Re-check played
+  const check = checkPlayer(userId, null); // skip token re-check here
+  if (check.status === 'expired')      return { success:false, message:'Campaign หมดอายุแล้ว' };
+  if (check.status === 'played')       return { success:false, message:'คุณเคยเล่นไปแล้ว' };
+
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000); // รอ 10 วินาที
+    lock.waitLock(10000);
 
-    // Re-check หลัง lock
-    const recheck = checkPlayer(userId);
-    if (recheck.status === 'played') return { success: false, message: 'คุณเคยเล่นไปแล้ว' };
-
-    // Pick prize
-    const prize = pickPrize();
-    if (!prize) return { success: false, message: 'รางวัลหมดแล้ว' };
-
-    // Generate reward code
-    const rewardCode = generateRewardCode(prize.id);
-
-    // Save to players sheet
-    savePlayerResult(userId, prize, rewardCode);
-
-    // Decrease remaining count
-    decrementPrize(prize.id);
-
-    // Send Line message (async-ish)
-    try {
-      sendLineMessage(userId, prize, rewardCode);
-    } catch (lineErr) {
-      logError('Line send failed: ' + lineErr.message);
-      // ไม่ throw — ไม่ให้ Line error ทำให้ spin fail
+    // Double-check after lock
+    const recheck = SpreadsheetApp.openById(SHEET_FILEID)
+      .getSheetByName(SHEET_PLAYERS).getDataRange().getValues();
+    for (let i = 1; i < recheck.length; i++) {
+      if (recheck[i][0] === userId && recheck[i][7] !== 'cancelled') {
+        return { success:false, message:'คุณเคยเล่นไปแล้ว' };
+      }
     }
 
-    return {
-      success: true,
-      prizeId: prize.id,
-      prizeName: prize.name,
-      prizeDesc: prize.desc,
-      rewardCode: rewardCode
-    };
+    const prize = pickPrize();
+    if (!prize) return { success:false, message:'รางวัลหมดแล้ว ขอบคุณที่ร่วมกิจกรรม!' };
 
-  } finally {
-    lock.releaseLock();
-  }
+    const rewardCode  = generateRewardCode(prize.id);
+    const spinNumber  = getNextSpinNumber();
+    savePlayerResult(userId, prize, rewardCode, spinNumber);
+    decrementPrize(prize.id);
+
+    // Notify Line Group (async-ish)
+    try { notifyLineGroup(userId, prize, rewardCode, spinNumber); } catch(e) { logAction('LINE_GROUP_ERROR', e.message); }
+
+    // Send personal Line message
+    try { sendLineMessage(userId, prize, rewardCode, spinNumber); } catch(e) { logAction('LINE_MSG_ERROR', e.message); }
+
+    return { success:true, prizeId:prize.id, prizeName:prize.name, prizeDesc:prize.desc, rewardCode, spinNumber };
+
+  } finally { lock.releaseLock(); }
 }
 
 // =====================================================
-// PRIZE SELECTION — Weighted, controlled
+// PRIZE SELECTION (Weighted)
 // =====================================================
 function pickPrize() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_PRIZES);
-  const data = sheet.getDataRange().getValues();
-
-  // Build weighted pool จากรางวัลที่ยังเหลือ
-  // Logic: รางวัลลำดับต้น (id น้อย = มีค่ามาก) มี weight น้อย → ออกช้า
-  // รางวัลลำดับท้าย (id มาก = ทั่วไป) มี weight มาก → ออกบ่อย
+  const rows = SpreadsheetApp.openById(SHEET_FILEID)
+    .getSheetByName(SHEET_PRIZES).getDataRange().getValues();
   const pool = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const id        = row[0];
-    const remaining = Number(row[6]);
-    const weight    = Number(row[7]);
-    const active    = row[8];
-
-    if (active && remaining > 0) {
-      // เพิ่ม weight ตามจำนวนที่กำหนด
-      for (let w = 0; w < weight; w++) {
-        pool.push({ id, name: row[1], desc: row[2], emoji: row[3] });
+  for (let i = 1; i < rows.length; i++) {
+    const [id,,,,, , remaining, weight, active] = rows[i];
+    if (active && Number(remaining) > 0) {
+      for (let w = 0; w < Number(weight); w++) {
+        pool.push({ id, name:rows[i][1], desc:rows[i][2], emoji:rows[i][3] });
       }
     }
   }
-
-  if (pool.length === 0) return null;
-
-  const idx = Math.floor(Math.random() * pool.length);
-  return pool[idx];
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// =====================================================
-// REWARD CODE GENERATOR
-// =====================================================
 function generateRewardCode(prizeId) {
-  const prefixes = { 1: 'LA', 2: 'VC', 3: 'S3', 4: 'S2', 5: 'GW' };
-  const prefix = prefixes[prizeId] || 'RW';
+  const pre = {1:'LA',2:'VC',3:'S3',4:'S2',5:'GW'};
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = prefix + '-';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
+  let code = (pre[prizeId]||'RW') + '-';
+  for (let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
   return code;
 }
 
-// =====================================================
-// SAVE PLAYER RESULT
-// =====================================================
-function savePlayerResult(userId, prize, rewardCode) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_PLAYERS);
-  const timestamp = new Date();
+function getNextSpinNumber() {
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PLAYERS);
+  const rows  = sheet.getDataRange().getValues();
+  // Count only active rows (not cancelled), excluding header
+  let count = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][7] !== 'cancelled') count++;
+  }
+  return count + 1; // next number
+}
 
-  sheet.appendRow([
-    userId,           // A: Line User ID
-    '',               // B: ชื่อ (ดึงจาก Line profile ได้ในอนาคต)
-    prize.name,       // C: ชื่อรางวัล
-    rewardCode,       // D: รหัสรางวัล
-    timestamp,        // E: วันเวลา
-    prize.id,         // F: Prize ID
-    'pending'         // G: สถานะ (pending/claimed)
-  ]);
+function savePlayerResult(userId, prize, rewardCode, spinNumber) {
+  SpreadsheetApp.openById(SHEET_FILEID)
+    .getSheetByName(SHEET_PLAYERS)
+    .appendRow([
+      userId, '', prize.name, rewardCode,
+      new Date(), prize.id, 'pending', 'active', spinNumber  // col I = spinNumber
+    ]);
 }
 
 function decrementPrize(prizeId) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_PRIZES);
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] == prizeId) {
-      const remaining = Number(data[i][6]) - 1;
-      sheet.getRange(i + 1, 7).setValue(Math.max(0, remaining)); // Column G
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PRIZES);
+  const rows = sheet.getDataRange().getValues();
+  for (let i=1;i<rows.length;i++) {
+    if (rows[i][0] == prizeId) {
+      sheet.getRange(i+1,7).setValue(Math.max(0, Number(rows[i][6])-1));
       break;
     }
   }
 }
 
 // =====================================================
-// LINE MESSAGING API
+// 🔑 QR TOKEN SYSTEM
 // =====================================================
-function sendLineMessage(userId, prize, rewardCode) {
-  const url = 'https://api.line.me/v2/bot/message/push';
-  const payload = {
-    to: userId,
-    messages: [
-      {
-        type: 'flex',
-        altText: `🎉 คุณได้รับรางวัล: ${prize.name}`,
-        contents: {
-          type: 'bubble',
-          size: 'mega',
-          header: {
-            type: 'box',
-            layout: 'vertical',
-            contents: [{
-              type: 'text',
-              text: '🎡 วงล้อพาโชค',
-              weight: 'bold',
-              size: 'md',
-              color: '#ffffff'
-            }],
-            backgroundColor: '#0033CC',
-            paddingAll: '16px'
-          },
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            spacing: 'md',
-            contents: [
-              {
-                type: 'text',
-                text: '🎉 ยินดีด้วย!',
-                weight: 'bold',
-                size: 'xl',
-                color: '#0033CC'
-              },
-              {
-                type: 'text',
-                text: `คุณได้รับ: ${prize.emoji} ${prize.name}`,
-                wrap: true,
-                size: 'lg',
-                weight: 'bold'
-              },
-              {
-                type: 'text',
-                text: prize.desc,
-                wrap: true,
-                size: 'sm',
-                color: '#666666'
-              },
-              {
-                type: 'separator'
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                backgroundColor: '#F5F5F5',
-                cornerRadius: '8px',
-                paddingAll: '12px',
-                contents: [
-                  {
-                    type: 'text',
-                    text: 'รหัสรับรางวัล',
-                    size: 'xs',
-                    color: '#888888'
-                  },
-                  {
-                    type: 'text',
-                    text: rewardCode,
-                    weight: 'bold',
-                    size: 'xl',
-                    color: '#0033CC',
-                    letterSpacing: '4px'
-                  }
-                ]
-              },
-              {
-                type: 'text',
-                text: '📸 กรุณาถ่ายภาพหน้าจอและนำรหัสนี้ไปแสดงกับทีมงานเพื่อรับรางวัล',
-                wrap: true,
-                size: 'xs',
-                color: '#888888'
-              }
-            ]
-          },
-          footer: {
-            type: 'box',
-            layout: 'vertical',
-            contents: [{
-              type: 'text',
-              text: `วันที่รับรางวัล: ${new Date().toLocaleDateString('th-TH')}`,
-              size: 'xs',
-              color: '#aaaaaa',
-              align: 'center'
-            }]
-          },
-          styles: {
-            footer: { separator: true }
-          }
+function generateQRToken() {
+  const config   = getConfig();
+  const mins     = Number(config.tokenMins) || 10;
+  const expiry   = new Date(Date.now() + mins * 60 * 1000);
+  const tokenStr = Utilities.getUuid().replace(/-/g,'').substr(0,16).toUpperCase();
+
+  SpreadsheetApp.openById(SHEET_FILEID)
+    .getSheetByName(SHEET_TOKENS)
+    .appendRow([tokenStr, expiry, 'active', new Date()]);
+
+  // Live Wheel
+  /*
+  //  const liffBase = config.liffUrl || 'https://liff.line.me/2010102212-BxhzRPQ9';
+  */
+
+  // Lucky Wheel
+  /***/
+    const liffBase = config.liffUrl || 'https://liff.line.me/2010096405-zr8CsSer';
+
+  const qrUrl    = `${liffBase}?token=${tokenStr}`;
+
+  logAction('GEN_TOKEN', `Token: ${tokenStr}, Expiry: ${expiry}`);
+
+  return {
+    success:   true,
+    token:     tokenStr,
+    expiry:    expiry.toISOString(),
+    expiryMins: mins,
+    qrUrl,
+    qrImageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`
+  };
+}
+
+function validateToken(token) {
+  if (!token) return { valid:false };
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_TOKENS);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i=1;i<rows.length;i++) {
+    if (rows[i][0] === token && rows[i][2] === 'active') {
+      const expiry = new Date(rows[i][1]);
+      const valid  = new Date() < expiry;
+      return { valid, expiry: expiry.getTime() };
+    }
+  }
+  return { valid:false };
+}
+
+function setTokenMins(mins) {
+  return setConfigValue('tokenMins', Number(mins));
+}
+
+// =====================================================
+// ❌ CANCEL PLAYER (Admin ยกเลิกรายการ)
+// =====================================================
+function cancelPlayer(userId) {
+  if (!userId) return { success:false, message:'No userId' };
+  const playerSheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PLAYERS);
+  const prizeSheet  = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PRIZES);
+  const playerRows  = playerSheet.getDataRange().getValues();
+  let found   = false;
+
+  for (let i = 1; i < playerRows.length; i++) {
+    if (playerRows[i][0] === userId && playerRows[i][7] !== 'cancelled') {
+      playerSheet.getRange(i+1, 7).setValue('cancelled-by-admin'); // status col
+      playerSheet.getRange(i+1, 8).setValue('cancelled');           // active col
+      
+      SpreadsheetApp.flush(); //บังคับ write ให้เสร็จ
+      // Give back prize count
+      const prizeId     = playerRows[i][5];
+      const prizeName   = playerRows[i][2];
+      const prizeRows   = prizeSheet.getDataRange().getValues();
+
+      for (let j = 1; j < prizeRows.length; j++) {
+        if (String(prizeRows[j][0]) == String(prizeId)) {
+          const currentRemaining = Number(prizeRows[j][6]);
+          const total = Number(prizeRows[j][5]);
+          const newRemaining = Math.min(currentRemaining + 1, total);
+
+          prizeSheet.getRange(j+1,7).setValue(newRemaining);
+          SpreadsheetApp.flush();
+          logAction('ADMIN_CANCEL', `Cancelled: ${userId} | Prize: ${prizeName} (id:${prizeId}) | Remaining: ${currentRemaining} → ${newRemaining}`
+          );
+          break;
         }
       }
-    ]
+      found = true;
+      //logAction('ADMIN_CANCEL', `Cancelled player: ${userId}, Prize: ${rows[i][2]}`);
+      break;
+    }
+  }
+
+  if (!found) return { success:false, message:'ไม่พบผู้เล่นนี้ หรือถูกยกเลิกไปแล้ว' };
+  return { success:true, message:`ยกเลิกรายการของ ${userId} แล้ว รางวัลถูกคืนเข้าระบบ ผู้เล่นสามารถเล่นใหม่ได้` };
+}
+
+// =====================================================
+// 📢 LINE GROUP NOTIFICATION
+// =====================================================
+function notifyLineGroup(userId, prize, rewardCode, spinNumber) {
+  let groupId = LINE_GROUP_BY_PRIZE[prize.id];
+  if (!groupId || groupId.includes('GROUP_ID')) {
+    groupId = LINE_GROUP_ID;
+  }
+
+  const shortId = userId.slice(-6);
+  const spinLabel = spinNumber ? `ครั้งที่ #${spinNumber}` : '';
+  const msg = {
+    to: groupId,
+    messages: [{
+      type: 'flex',
+      altText: `🎡 [${spinLabel}] รางวัลใหม่! ${prize.emoji} ${prize.name}`,
+      contents: {
+        type: 'bubble',
+        size: 'kilo',
+        header: {
+          type: 'box', layout: 'horizontal',
+          backgroundColor: '#0033CC', paddingAll: '12px',
+          contents: [
+            { type:'text', text: prize.emoji, size:'xl', flex:0 },
+            { type:'text', text: ' มีผู้รับรางวัล!', weight:'bold', color:'#FFD700', size:'sm', gravity:'center' }
+          ]
+        },
+        body: {
+          type: 'box', layout: 'vertical', spacing: 'sm',
+          contents: [
+            {
+              type:'box', layout:'horizontal',
+              contents: [
+                { type:'text', text:'🎯 ลำดับ:', size:'sm', color:'#888888', flex:2 },
+                { type:'text', text: spinLabel, size:'sm', weight:'bold', color:'#FFD700', flex:5 }
+              ]
+            },
+            {
+              type:'box', layout:'horizontal',
+              contents: [
+                { type:'text', text:'รางวัล:', size:'sm', color:'#888888', flex:2 },
+                { type:'text', text:`${prize.emoji} ${prize.name}`, size:'sm', weight:'bold', flex:5 }
+              ]
+            },
+            {
+              type:'box', layout:'horizontal',
+              contents: [
+                { type:'text', text:'รหัส:', size:'sm', color:'#888888', flex:2 },
+                { type:'text', text: rewardCode, size:'sm', weight:'bold', color:'#0033CC', flex:5 }
+              ]
+            },
+            {
+              type:'box', layout:'horizontal',
+              contents: [
+                { type:'text', text:'เวลา:', size:'xs', color:'#888888', flex:2 },
+                { type:'text', text: new Date().toLocaleString('th-TH'), size:'xs', color:'#888888', flex:5 }
+              ]
+            },
+            {
+              type:'box', layout:'horizontal',
+              contents: [
+                { type:'text', text:'User:', size:'xs', color:'#888888', flex:2 },
+                { type:'text', text:'...'+shortId, size:'xs', color:'#888888', flex:5 }
+              ]
+            }
+          ]
+        }
+      }
+    }]
   };
 
-  const options = {
+  UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
     method: 'post',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + LINE_CHANNEL_TOKEN
     },
-    payload: JSON.stringify(payload),
+    payload: JSON.stringify(msg),
     muteHttpExceptions: true
+  });
+}
+
+
+// =====================================================
+// LINE PERSONAL MESSAGE
+// =====================================================
+function sendLineMessage(userId, prize, rewardCode, spinNumber) {
+  const spinLabel = spinNumber ? `ลำดับการออกรางวัลครั้งที่ #${spinNumber}` : '';
+  const payload = {
+    to: userId,
+    messages: [{
+      type: 'flex',
+      altText: `🎉 คุณได้รับรางวัล: ${prize.name}`,
+      contents: {
+        type: 'bubble', size: 'mega',
+        header: {
+          type:'box', layout:'vertical', backgroundColor:'#0033CC', paddingAll:'16px',
+          contents: [
+            { type:'text', text:'🎡 Ranger Live Wheel 2026', weight:'bold', size:'md', color:'#ffffff' },
+            { type:'text', text: spinLabel, size:'xs', color:'rgba(255,255,255,0.7)', margin:'sm' }
+          ]
+        },
+        body: {
+          type:'box', layout:'vertical', spacing:'md',
+          contents: [
+            { type:'text', text:'🎉 ยินดีด้วย!', weight:'bold', size:'xl', color:'#0033CC' },
+            { type:'text', text:`${prize.emoji} ${prize.name}`, wrap:true, size:'lg', weight:'bold' },
+            { type:'text', text:prize.desc, wrap:true, size:'sm', color:'#666666' },
+            { type:'separator' },
+            {
+              type:'box', layout:'vertical', backgroundColor:'#F5F5F5', cornerRadius:'8px', paddingAll:'12px',
+              contents: [
+                { type:'text', text:'รหัสรับรางวัล', size:'xs', color:'#888888' },
+                { type:'text', text:rewardCode, weight:'bold', size:'xl', color:'#0033CC', letterSpacing:'4px' }
+              ]
+            },
+            { type:'text', text:'📸 ถ่ายภาพหน้าจอและนำรหัสนี้ไปแสดงกับทีมงาน', wrap:true, size:'xs', color:'#888888' }
+          ]
+        },
+        footer: {
+          type:'box', layout:'vertical',
+          contents: [{ type:'text', text:new Date().toLocaleDateString('th-TH'), size:'xs', color:'#aaaaaa', align:'center' }]
+        }
+      }
+    }]
   };
 
-  const response = UrlFetchApp.fetch(url, options);
-  if (response.getResponseCode() !== 200) {
-    throw new Error('Line API: ' + response.getContentText());
-  }
+  UrlFetchApp.fetch('https://api.line.me/v2/bot/message/push', {
+    method:'post',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + LINE_CHANNEL_TOKEN },
+    payload:JSON.stringify(payload),
+    muteHttpExceptions:true
+  });
 }
 
 // =====================================================
-// CONFIG — อ่านค่าจาก Sheet config
+// CONFIG
 // =====================================================
 function getConfig() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_CONFIG);
-  const data = sheet.getDataRange().getValues();
-  const config = {};
-  for (let i = 1; i < data.length; i++) {
-    config[data[i][0]] = data[i][1];
-  }
-  return config;
+  const rows = SpreadsheetApp.openById(SHEET_FILEID)
+    .getSheetByName(SHEET_CONFIG).getDataRange().getValues();
+  const cfg = {};
+  rows.slice(1).forEach(r => { if(r[0]) cfg[r[0]] = r[1]; });
+  return cfg;
 }
 
-// =====================================================
-// ADMIN — สถิติและ reset
-// =====================================================
-function handleAdmin(data) {
-  if (data.password !== ADMIN_PASSWORD) {
-    return { success: false, message: 'รหัสผ่านไม่ถูกต้อง' };
+function setConfigValue(key, value) {
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_CONFIG);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i=1;i<rows.length;i++) {
+    if (rows[i][0] === key) { sheet.getRange(i+1,2).setValue(value); return { success:true }; }
   }
-
-  switch (data.subAction) {
-    case 'stats':   return getAdminStats();
-    case 'reset':   return resetCampaign(data);
-    case 'setDate': return setExpiryDate(data.date);
-    default:        return { success: false, message: 'Unknown subAction' };
-  }
+  sheet.appendRow([key, value]);
+  return { success:true };
 }
 
+function setExpiryDate(date) { return setConfigValue('expiryDate', date); }
+
+// =====================================================
+// ADMIN STATS
+// =====================================================
 function getAdminStats() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const prizesSheet  = ss.getSheetByName(SHEET_PRIZES);
-  const playersSheet = ss.getSheetByName(SHEET_PLAYERS);
-  const config = getConfig();
+  const ss          = SpreadsheetApp.openById(SHEET_FILEID);
+  const prizesSheet = ss.getSheetByName(SHEET_PRIZES);
+  const playerRows  = ss.getSheetByName(SHEET_PLAYERS).getDataRange().getValues();
+  const config      = getConfig();
 
-  const prizesData  = prizesSheet.getDataRange().getValues();
-  const playersData = playersSheet.getDataRange().getValues();
+  const prizeRows = prizesSheet.getDataRange().getValues();
+  const prizes = []; let totalGiven=0, totalRemaining=0;
 
-  const totalPlayers = Math.max(0, playersData.length - 1);
-  const prizes = [];
-  let totalGiven = 0;
-  let totalRemaining = 0;
-
-  for (let i = 1; i < prizesData.length; i++) {
-    const row = prizesData[i];
-    if (!row[0]) continue;
-    const total     = Number(row[5]);
-    const remaining = Number(row[6]);
-    const given     = total - remaining;
-    totalGiven     += given;
-    totalRemaining += remaining;
-    prizes.push({
-      id:        row[0],
-      name:      row[1],
-      emoji:     row[3],
-      total,
-      remaining,
-      given
-    });
+  for (let i=1;i<prizeRows.length;i++) {
+    if (!prizeRows[i][0]) continue;
+    const total=Number(prizeRows[i][5]), rem=Number(prizeRows[i][6]), given=total-rem;
+    totalGiven+=given; totalRemaining+=rem;
+    prizes.push({ id:prizeRows[i][0], name:prizeRows[i][1], emoji:prizeRows[i][3], total, remaining:rem, given });
   }
 
-  // Recent 10 players
-  const recentPlayers = [];
-  for (let i = Math.max(1, playersData.length - 10); i < playersData.length; i++) {
-    recentPlayers.push({
-      userId:     playersData[i][0],
-      prizeName:  playersData[i][2],
-      rewardCode: playersData[i][3],
-      timestamp:  playersData[i][4],
-      status:     playersData[i][6]
-    });
-  }
+  const activePlayers = playerRows.slice(1).filter(r => r[7] !== 'cancelled');
+  const recentPlayers = activePlayers.slice(-10).reverse().map(r => ({
+    userId:r[0], prizeName:r[2], rewardCode:r[3],
+    timestamp:r[4], status:r[6], spinNumber:r[8]
+  }));
+
+  // Prize distribution for chart
+  const prizeChart = prizes.map(p => ({ name:p.name, given:p.given, emoji:p.emoji }));
 
   return {
-    success: true,
-    totalPlayers,
-    totalGiven,
-    totalRemaining,
-    prizes,
-    recentPlayers: recentPlayers.reverse(),
-    expiryDate: config.expiryDate || 'ไม่ได้กำหนด',
-    campaignName: config.campaignName || 'วงล้อพาโชค'
+    success:        true,
+    totalPlayers:   activePlayers.length,
+    cancelledCount: playerRows.slice(1).filter(r=>r[7]==='cancelled').length,
+    totalGiven, totalRemaining, prizes, recentPlayers, prizeChart,
+    expiryDate:   config.expiryDate || 'ไม่ได้กำหนด',
+    campaignName: config.campaignName || 'วงล้อพาโชค',
+    tokenMins:    config.tokenMins || 10,
+    liffUrl:      config.liffUrl || ''
   };
 }
 
-function resetCampaign(data) {
-  // Reset เฉพาะ remaining count กลับเป็น total
-  // *** ไม่ลบ players *** (ใส่ flag แทน)
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_PRIZES);
-  const data2 = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data2.length; i++) {
-    if (!data2[i][0]) continue;
-    const total = Number(data2[i][5]);
-    sheet.getRange(i + 1, 7).setValue(total); // Reset remaining = total
-  }
-
-  logAction('ADMIN_RESET', 'Campaign reset by admin');
-  return { success: true, message: 'Reset รางวัลสำเร็จ' };
-}
-
-function setExpiryDate(dateStr) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_CONFIG);
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === 'expiryDate') {
-      sheet.getRange(i + 1, 2).setValue(dateStr);
-      logAction('ADMIN_SET_DATE', 'Expiry set to ' + dateStr);
-      return { success: true, message: 'ตั้งวันหมดอายุแล้ว: ' + dateStr };
-    }
-  }
-  // ถ้าไม่มี row ให้ append
-  sheet.appendRow(['expiryDate', dateStr]);
-  return { success: true, message: 'ตั้งวันหมดอายุแล้ว: ' + dateStr };
+// =====================================================
+// EXPORT CSV
+// =====================================================
+function exportPlayersCSV() {
+  const rows = SpreadsheetApp.openById(SHEET_FILEID)
+    .getSheetByName(SHEET_PLAYERS).getDataRange().getValues();
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  return { success:true, csv };
 }
 
 // =====================================================
-// LOGGING
+// RESET
 // =====================================================
-function logError(err) {
-  logAction('ERROR', err.toString ? err.toString() : err);
+function resetCampaign() {
+  const sheet = SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_PRIZES);
+  const rows  = sheet.getDataRange().getValues();
+  for (let i=1;i<rows.length;i++) {
+    if (!rows[i][0]) continue;
+    sheet.getRange(i+1,7).setValue(Number(rows[i][5]));
+  }
+  logAction('ADMIN_RESET','Campaign reset');
+  return { success:true, message:'Reset รางวัลสำเร็จ' };
 }
 
+// =====================================================
+// LOG
+// =====================================================
 function logAction(type, message) {
   try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(SHEET_LOG);
-    if (sheet) {
-      sheet.appendRow([new Date(), type, message]);
-    }
-  } catch (e) { /* silent */ }
+    SpreadsheetApp.openById(SHEET_FILEID).getSheetByName(SHEET_LOG)
+      .appendRow([new Date(), type, message]);
+  } catch(e) {}
 }
 
 // =====================================================
-// SETUP — รันครั้งแรกเพื่อสร้าง Sheet structure
+// SETUP — รันครั้งเดียว
 // =====================================================
 function setupSheets() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = SpreadsheetApp.openById(SHEET_FILEID);
 
-  // ===== prizes sheet =====
-  let prizesSheet = ss.getSheetByName(SHEET_PRIZES);
-  if (!prizesSheet) prizesSheet = ss.insertSheet(SHEET_PRIZES);
-  prizesSheet.clearContents();
-  prizesSheet.getRange(1, 1, 1, 9).setValues([[
-    'id', 'name', 'desc', 'emoji', 'color', 'total', 'remaining', 'weight', 'active'
-  ]]);
-  prizesSheet.getRange(2, 1, 5, 9).setValues([
-    [1, 'Live Ads',              'มูลค่า 500 บาท',                    '📺', '#FFD700', 30, 30,  5,  true],
-    [2, 'VC พิเศษ',              'คูปองมูลค่า 300 บาท',                '🎫', '#00AAFF', 30, 30,  10, true],
-    [3, 'สินค้าตัวอย่าง 3 ชิ้น', 'Extreme LVD / 12Hrs / Pet Coil',    '🎁', '#FF6644', 50, 50,  20, true],
-    [4, 'สินค้าตัวอย่าง 2 ชิ้น', 'Extreme LVD / 12Hrs',               '📦', '#00CC66', 80, 80,  40, true],
-    [5, 'GWP',                   'ไอเท็มช่วยชาย',                      '⭐', '#FF8800', 10, 10,  25, true]
+  // prizes
+  let s = ss.getSheetByName(SHEET_PRIZES) || ss.insertSheet(SHEET_PRIZES);
+  s.clearContents();
+  s.getRange(1,1,1,9).setValues([['id','name','desc','emoji','color','total','remaining','weight','active']]);
+  s.getRange(2,1,5,9).setValues([
+    [1,'Live Ads','มูลค่า 500 บาท','📺','#FFD700',30,30,5,true],
+    [2,'VC พิเศษ','คูปองมูลค่า 300 บาท','🎫','#00AAFF',30,30,10,true],
+    [3,'สินค้าตัวอย่าง 3 ชิ้น','Extreme LVD / 12Hrs / Pet Coil','🎁','#FF6644',50,50,20,true],
+    [4,'สินค้าตัวอย่าง 2 ชิ้น','Extreme LVD / 12Hrs','📦','#00CC66',80,80,40,true],
+    [5,'GWP','ไอเท็มช่วยชาย','⭐','#FF8800',10,10,25,true]
   ]);
 
-  // ===== players sheet =====
-  let playersSheet = ss.getSheetByName(SHEET_PLAYERS);
-  if (!playersSheet) playersSheet = ss.insertSheet(SHEET_PLAYERS);
-  playersSheet.clearContents();
-  playersSheet.getRange(1, 1, 1, 7).setValues([[
-    'lineUserId', 'displayName', 'prizeName', 'rewardCode', 'timestamp', 'prizeId', 'status'
-  ]]);
+  // players (col H = active/cancelled, col I = spinNumber)
+  s = ss.getSheetByName(SHEET_PLAYERS) || ss.insertSheet(SHEET_PLAYERS);
+  s.clearContents();
+  s.getRange(1,1,1,9).setValues([['lineUserId','displayName','prizeName','rewardCode','timestamp','prizeId','status','activeFlag','spinNumber']]);
 
-  // ===== config sheet =====
-  let configSheet = ss.getSheetByName(SHEET_CONFIG);
-  if (!configSheet) configSheet = ss.insertSheet(SHEET_CONFIG);
-  configSheet.clearContents();
-  configSheet.getRange(1, 1, 1, 2).setValues([['key', 'value']]);
-  configSheet.getRange(2, 1, 3, 2).setValues([
-    ['campaignName',  'วงล้อพาโชค Affiliate'],
-    ['expiryDate',    '2025-12-31'],              // ← แก้วันหมดอายุ
-    ['adminPassword', ADMIN_PASSWORD]
+  // config
+  s = ss.getSheetByName(SHEET_CONFIG) || ss.insertSheet(SHEET_CONFIG);
+  s.clearContents();
+  s.getRange(1,1,1,2).setValues([['key','value']]);
+  s.getRange(2,1,5,2).setValues([
+    ['campaignName','RangerLiveWheel2026May'],
+    ['expiryDate','2025-12-31'],
+    ['tokenMins','10'],
+
+    //Live Wheel
+    //['liffUrl','https://liff.line.me/2010102212-BxhzRPQ9'],
+    //Lucky Wheel
+    ['liffUrl','https://liff.line.me/2010096405-zr8CsSer'],
+    
+    ['adminPassword',ADMIN_PASSWORD]
   ]);
 
-  // ===== log sheet =====
-  let logSheet = ss.getSheetByName(SHEET_LOG);
-  if (!logSheet) logSheet = ss.insertSheet(SHEET_LOG);
-  logSheet.clearContents();
-  logSheet.getRange(1, 1, 1, 3).setValues([['timestamp', 'type', 'message']]);
+  // tokens
+  s = ss.getSheetByName(SHEET_TOKENS) || ss.insertSheet(SHEET_TOKENS);
+  s.clearContents();
+  s.getRange(1,1,1,4).setValues([['token','expiry','status','createdAt']]);
+
+  // log
+  s = ss.getSheetByName(SHEET_LOG) || ss.insertSheet(SHEET_LOG);
+  s.clearContents();
+  s.getRange(1,1,1,3).setValues([['timestamp','type','message']]);
 
   SpreadsheetApp.flush();
-  Logger.log('✅ Setup complete! Sheet structure created.');
+  Logger.log('✅ Setup v2 complete!');
 }
