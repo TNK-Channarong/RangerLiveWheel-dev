@@ -32,7 +32,8 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
 
   /* MISC SCREENS */
-  #screen-expired,#screen-token-expired,#screen-played,#screen-error{text-align:center}
+  #screen-expired,#screen-token-expired,#screen-error{text-align:center}
+  #screen-played{text-align:center;justify-content:flex-start;padding-top:20px;overflow-y:auto}
   .big-icon{font-size:5rem;margin-bottom:16px;animation:bounce-in 0.6s cubic-bezier(0.34,1.56,0.64,1)}
   .screen-title{font-size:1.8rem;font-weight:800;margin-bottom:8px}
   .screen-desc{font-size:1rem;color:var(--text-muted);line-height:1.6;font-family:'Sarabun',sans-serif}
@@ -157,13 +158,38 @@
 
 <!-- ALREADY PLAYED -->
 <div class="screen hidden" id="screen-played">
-  <div class="big-icon">🎯</div>
-  <div class="screen-title" style="color:var(--gold)">คุณเคยเล่นแล้ว!</div>
-  <div class="screen-desc">สิทธิ์ของคุณถูกใช้ไปแล้ว<br>สามารถเล่นได้เพียง 1 ครั้งเท่านั้น</div>
-  <div class="played-prize-box">
-    <div class="played-prize-label">รางวัลที่ได้รับ</div>
-    <div class="played-prize-name" id="played-prize-name">–</div>
-    <div class="played-code" id="played-code">–</div>
+  <div class="result-inner" style="padding-top:32px">
+
+    <!-- ยังไม่รับรางวัล -->
+    <div id="played-pending-section">
+      <div style="font-size:2.8rem;margin-bottom:8px">🎁</div>
+      <div class="screen-title" style="color:var(--gold);margin-bottom:4px">รางวัลรอรับอยู่!</div>
+      <div class="screen-desc" style="margin-bottom:16px">แสดง QR นี้ให้ทีมงานสแกนเพื่อรับรางวัล</div>
+      <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:14px 20px;margin-bottom:16px;width:100%">
+        <div class="played-prize-label">รางวัลของคุณ</div>
+        <div class="played-prize-name" id="played-prize-name">–</div>
+        <div id="played-spin-number" style="font-size:0.78rem;color:rgba(255,215,0,0.6);margin-top:2px"></div>
+      </div>
+      <div style="background:#fff;padding:10px;border-radius:14px;display:inline-block;margin-bottom:10px" id="played-qr-container"></div>
+      <div style="font-size:0.75rem;color:var(--text-muted);font-family:'Sarabun',sans-serif;margin-bottom:12px">📲 ให้ทีมงานสแกน QR หรือแจ้งรหัสด้านล่าง</div>
+      <div class="result-code-box" style="width:100%;margin-bottom:6px">
+        <div class="result-code" id="played-code">–</div>
+        <button class="copy-btn" onclick="document.getElementById('played-code').textContent&&navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('played-code').textContent)">คัดลอก</button>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted);font-family:'Sarabun',sans-serif">📸 ถ่ายภาพหน้าจอไว้เป็นหลักฐานด้วยนะครับ</div>
+    </div>
+
+    <!-- รับรางวัลแล้ว -->
+    <div id="played-claimed-section" style="display:none">
+      <div style="font-size:3rem;margin-bottom:12px">✅</div>
+      <div class="screen-title" style="color:var(--success);margin-bottom:6px">รับรางวัลแล้ว!</div>
+      <div class="screen-desc">คุณได้รับรางวัลเรียบร้อยแล้วครับ<br>ขอบคุณที่ร่วมกิจกรรม 🙏</div>
+      <div style="margin-top:20px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:14px;padding:16px 20px">
+        <div class="played-prize-label">รางวัลที่ได้รับ</div>
+        <div class="played-prize-name" id="played-prize-name-claimed" style="color:var(--success)">–</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -262,7 +288,7 @@ const CONFIG = {
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzJE_C-A8WFW9Ys4UoIfguQK65_K5xpgLUKW-5dR-NQs_o40Z0cpUaPNfTwmvOXyGcPrA/exec',
 
   // ← true = ทดสอบโดยไม่ต้องมี LIFF/API จริง, เปลี่ยนเป็น false เวลา deploy จริง
-  DEMO_MODE: false
+  DEMO_MODE: true
 };
 
 // Live Wheel
@@ -472,9 +498,28 @@ async function initGame(){
     if(res.status==='expired'){showScreen('expired');return}
     if(res.status==='token-expired'){showScreen('token-expired');return}
     if(res.status==='played'){
-      document.getElementById('played-prize-name').textContent=res.prizeName;
-      document.getElementById('played-code').textContent=res.rewardCode;
-      showScreen('played');return
+      const claimed = res.claimStatus === 'claimed';
+      // section toggle
+      document.getElementById('played-pending-section').style.display = claimed ? 'none' : 'block';
+      document.getElementById('played-claimed-section').style.display = claimed ? 'block' : 'none';
+
+      if(claimed){
+        document.getElementById('played-prize-name-claimed').textContent = res.prizeName;
+      } else {
+        document.getElementById('played-prize-name').textContent = res.prizeName;
+        document.getElementById('played-code').textContent = res.rewardCode;
+        if(res.spinNumber) document.getElementById('played-spin-number').textContent = `ลำดับการออกรางวัล #${res.spinNumber}`;
+        // สร้าง QR
+        const qrEl = document.getElementById('played-qr-container');
+        qrEl.innerHTML = '';
+        new QRCode(qrEl, {
+          text: res.rewardCode,
+          width: 160, height: 160,
+          colorDark: '#000000', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }
+      showScreen('played'); return;
     }
     if(res.tokenExpiry){
       const totalMs=res.tokenExpiry-Date.now();
