@@ -7,7 +7,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{
     --brand:#0033CC;--brand-light:#1A4FE8;--gold:#FFD700;
@@ -245,8 +244,12 @@
         <div class="qr-sub">ให้ผู้เล่นแสดง QR แล้วกดปุ่มสแกน หรือพิมพ์รหัสเอง</div>
 
         <!-- กล้องสแกน -->
-        <div id="scan-reader-wrap" style="width:100%;max-width:300px;margin:16px auto;border-radius:16px;overflow:hidden;border:2px solid rgba(255,215,0,0.3);display:none">
-          <div id="scan-reader" style="width:100%"></div>
+        <div id="scan-reader-wrap" style="width:100%;max-width:300px;margin:16px auto;border-radius:16px;overflow:hidden;border:2px solid rgba(255,215,0,0.3);display:none;position:relative">
+          <video id="scan-video" style="width:100%;display:block;border-radius:14px" autoplay muted playsinline></video>
+          <canvas id="scan-canvas" style="display:none"></canvas>
+          <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
+            <div style="width:180px;height:180px;border:2.5px solid rgba(255,215,0,0.7);border-radius:12px;box-shadow:0 0 0 2000px rgba(0,0,0,0.35)"></div>
+          </div>
         </div>
 
         <!-- Manual input -->
@@ -669,37 +672,83 @@ function switchTab(name){
 // =====================================================
 // 📷 QR SCAN & CLAIM
 // =====================================================
-let html5QrCode=null, cameraOn=false, currentLookupCode=null;
+let cameraOn=false, currentLookupCode=null, _scanStream=null, _scanRaf=null;
 
 function toggleCamera(){
   cameraOn ? stopCamera() : startCamera();
 }
 
-function startCamera(){
-  const wrap=document.getElementById('scan-reader-wrap');
-  wrap.style.display='block';
-  document.getElementById('scan-camera-btn').textContent='⏹️ ปิดกล้อง';
-  html5QrCode = new Html5Qrcode('scan-reader');
-  html5QrCode.start(
-    {facingMode:'environment'},
-    {fps:10, qrbox:{width:220,height:220}},
-    (decodedText)=>{
-      document.getElementById('scan-code-input').value=decodedText.trim().toUpperCase();
-      stopCamera();
-      lookupCode();
-    },
-    ()=>{}
-  ).catch(()=>showToast('❌ ไม่สามารถเปิดกล้องได้','error'));
-  cameraOn=true;
+async function startCamera(){
+  const btn=document.getElementById('scan-camera-btn');
+  btn.textContent='⏳ กำลังเปิดกล้อง...'; btn.disabled=true;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}
+    });
+    _scanStream=stream;
+    const video=document.getElementById('scan-video');
+    video.srcObject=stream;
+    await video.play();
+    document.getElementById('scan-reader-wrap').style.display='block';
+    btn.textContent='⏹️ ปิดกล้อง'; btn.disabled=false;
+    cameraOn=true;
+    // เริ่ม decode loop
+    _scanLoop();
+  }catch(err){
+    btn.textContent='📷 เปิดกล้องสแกน QR'; btn.disabled=false;
+    const msg = err.name==='NotAllowedError'
+      ? 'กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ก่อนครับ'
+      : 'ไม่สามารถเปิดกล้องได้: '+err.message;
+    showToast('❌ '+msg,'error');
+  }
+}
+
+function _scanLoop(){
+  const video=document.getElementById('scan-video');
+  const canvas=document.getElementById('scan-canvas');
+  if(!cameraOn || video.readyState < 2){ _scanRaf=requestAnimationFrame(_scanLoop); return; }
+  canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(video,0,0);
+  // ลอง BarcodeDetector ก่อน (Chrome/Android)
+  if(window.BarcodeDetector){
+    new BarcodeDetector({formats:['qr_code']}).detect(canvas)
+      .then(codes=>{
+        if(codes.length){
+          const val=codes[0].rawValue.trim().toUpperCase();
+          document.getElementById('scan-code-input').value=val;
+          stopCamera(); lookupCode();
+        } else { _scanRaf=requestAnimationFrame(_scanLoop); }
+      }).catch(()=>{ _scanRaf=requestAnimationFrame(_scanLoop); });
+  } else {
+    // Fallback: ใช้ ImageData กับ jsQR (โหลดจาก cdn)
+    if(!window.jsQR){ _loadJsQR(); _scanRaf=requestAnimationFrame(_scanLoop); return; }
+    const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+    if(code){
+      document.getElementById('scan-code-input').value=code.data.trim().toUpperCase();
+      stopCamera(); lookupCode();
+    } else { _scanRaf=requestAnimationFrame(_scanLoop); }
+  }
+}
+
+function _loadJsQR(){
+  if(document.getElementById('jsqr-script'))return;
+  const s=document.createElement('script');
+  s.id='jsqr-script';
+  s.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+  document.head.appendChild(s);
 }
 
 function stopCamera(){
-  if(html5QrCode && cameraOn){
-    html5QrCode.stop().catch(()=>{});
-    cameraOn=false;
-    document.getElementById('scan-camera-btn').textContent='📷 เปิดกล้องสแกน QR';
-    document.getElementById('scan-reader-wrap').style.display='none';
-  }
+  cameraOn=false;
+  if(_scanRaf){ cancelAnimationFrame(_scanRaf); _scanRaf=null; }
+  if(_scanStream){ _scanStream.getTracks().forEach(t=>t.stop()); _scanStream=null; }
+  const video=document.getElementById('scan-video');
+  video.srcObject=null;
+  document.getElementById('scan-reader-wrap').style.display='none';
+  const btn=document.getElementById('scan-camera-btn');
+  if(btn){ btn.textContent='📷 เปิดกล้องสแกน QR'; btn.disabled=false; }
 }
 
 async function lookupCode(){
