@@ -219,12 +219,10 @@
   </div>
   <button class="spin-btn" id="spinBtn" onclick="startSpin()">🎰 แตะหมุนล้อตรงนี้จ้า!</button>
   <div id="api-status" style="display:none;font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:6px;font-family:'Sarabun',sans-serif;animation:pulse 1s ease-in-out infinite">⏳ กำลังตรวจสอบผล...</div>
-  <!--
   <div class="prizes-section">
     <div class="prizes-title">รางวัลทั้งหมด</div>
     <div id="prizes-list"></div>
   </div>
-  -->
 </div>
 
 
@@ -304,7 +302,7 @@ const PRIZES = [
   {id:2,name:'VC พิเศษ',desc:'คูปองมูลค่า 300 บาท',emoji:'🎫',color:'#00AAFF',total:30,remaining:30},
   {id:3,name:'สินค้าตัวอย่าง 3 ชิ้น',desc:'Extreme LVD / 12Hrs / Pet Coil',emoji:'🎁',color:'#FF6644',total:50,remaining:50},
   {id:4,name:'สินค้าตัวอย่าง 2 ชิ้น',desc:'Extreme LVD / 12Hrs',emoji:'📦',color:'#00CC66',total:80,remaining:80},
-  {id:5,name:'GWP',desc:'ไอเท็มช่วยชาย',emoji:'⭐',color:'#FF8800',total:10,remaining:10}
+  {id:5,name:'GWP',desc:'ไอเท็มช่วยขาย',emoji:'⭐',color:'#FF8800',total:10,remaining:10}
 ];
 
 let lineUserId=null, wheelAngle=0, isSpinning=false, spinResult=null;
@@ -448,25 +446,50 @@ function toggleSound(){
 // =====================================================
 function getToken(){return new URLSearchParams(window.location.search).get('token')}
 
-function startTokenCountdown(expiryTs, totalMs){
-  tokenExpiry=expiryTs; tokenTotal=totalMs||((expiryTs-Date.now()));
-  const wrap=document.getElementById('tokenBarWrap');
-  const bar=document.getElementById('tokenBar');
-  const text=document.getElementById('tokenTimeText');
-  wrap.style.display='block';
+function startTokenCountdown(expiryTs, totalMs, mode='token'){
+  tokenExpiry = mode==='token' ? expiryTs : null; // campaign mode ไม่ block spin
+  tokenTotal  = totalMs || (expiryTs - Date.now());
+  const wrap  = document.getElementById('tokenBarWrap');
+  const bar   = document.getElementById('tokenBar');
+  const text  = document.getElementById('tokenTimeText');
+  wrap.style.display = 'block';
 
   function tick(){
-    const rem=tokenExpiry-Date.now();
-    if(rem<=0){clearInterval(tokenTimer);showScreen('token-expired');return}
-    const pct=(rem/tokenTotal)*100;
-    bar.style.width=pct+'%';
-    const secs=Math.ceil(rem/1000);
-    const m=Math.floor(secs/60), s=secs%60;
-    text.textContent=`⏱️ เหลือเวลา ${m>0?m+'นาที ':''} ${s}วินาที`;
-    if(secs<=30){bar.classList.add('warning');text.classList.add('warning');if(secs%10===0)playWarning();}
+    const rem = expiryTs - Date.now();
+    if(rem <= 0){
+      clearInterval(tokenTimer);
+      if(mode === 'token'){ showScreen('token-expired'); return; }
+      // campaign mode — แค่แจ้งว่าหมดเวลา ไม่ block
+      bar.style.width = '0%';
+      text.textContent = '⏰ หมดเวลาแล้ว';
+      text.classList.add('warning');
+      return;
+    }
+    const pct  = Math.min((rem / tokenTotal) * 100, 100);
+    bar.style.width = pct + '%';
+    const secs = Math.ceil(rem / 1000);
+    const h    = Math.floor(secs / 3600);
+    const m    = Math.floor((secs % 3600) / 60);
+    const s    = secs % 60;
+    const label = mode === 'token'
+      ? `⏱️ สิทธิ์หมดใน ${m>0?m+'น. ':''}${s}วิ`
+      : h > 0
+        ? `⏰ หมดเวลาใน ${h}ชม. ${m}น.`
+        : m > 0
+          ? `⏰ หมดเวลาใน ${m}น. ${s}วิ`
+          : `⏰ หมดเวลาใน ${s}วินาที`;
+    text.textContent = label;
+    if(secs <= 60){
+      bar.classList.add('warning');
+      text.classList.add('warning');
+      if(mode==='token' && secs%10===0) playWarning();
+    } else {
+      bar.classList.remove('warning');
+      text.classList.remove('warning');
+    }
   }
   tick();
-  tokenTimer=setInterval(tick,1000);
+  tokenTimer = setInterval(tick, 1000);
 }
 
 // =====================================================
@@ -478,7 +501,7 @@ window.addEventListener('load',async()=>{
   if(CONFIG.DEMO_MODE){
     lineUserId='DEMO_'+Math.random().toString(36).substr(2,8);
     const expMs=5*60*1000;
-    startTokenCountdown(Date.now()+expMs, expMs);
+    startTokenCountdown(Date.now()+expMs, expMs, 'token');
     drawWheel(); renderPrizeList(); showScreen('wheel');
   }else{
     try{
@@ -522,8 +545,15 @@ async function initGame(){
       showScreen('played'); return;
     }
     if(res.tokenExpiry){
-      const totalMs=res.tokenExpiry-Date.now();
-      startTokenCountdown(res.tokenExpiry,totalMs);
+      // มี QR token — นับแบบ strict (หมดแล้ว block)
+      startTokenCountdown(res.tokenExpiry, res.tokenExpiry - Date.now(), 'token');
+    } else if(res.expiryDate){
+      // ไม่มี token — นับจาก campaign expiry แบบ soft (กระตุ้นเฉยๆ)
+      const exp = new Date(res.expiryDate);
+      exp.setHours(23,59,59,999); // ถึงสิ้นวัน
+      const now = Date.now();
+      const totalMs = exp.getTime() - now;
+      if(totalMs > 0) startTokenCountdown(exp.getTime(), totalMs, 'campaign');
     }
     if(res.prizes)updatePrizes(res.prizes);
     drawWheel();renderPrizeList();showScreen('wheel');
@@ -567,14 +597,12 @@ function lighten(hex,a){const n=parseInt(hex.replace('#',''),16);return`rgb(${Ma
 function darken(hex,a){const n=parseInt(hex.replace('#',''),16);return`rgb(${Math.max(0,(n>>16)-a)},${Math.max(0,((n>>8)&0xff)-a)},${Math.max(0,(n&0xff)-a)})`}
 
 function renderPrizeList(){
-  /*
   document.getElementById('prizes-list').innerHTML=PRIZES.map(p=>`
     <div class="prize-row">
       <div class="prize-dot" style="background:${p.color};box-shadow:0 0 6px ${p.color}"></div>
       <div class="prize-name">${p.emoji} ${p.name}</div>
       ${p.remaining===0?'<span class="prize-out-badge">หมดแล้ว</span>':`<span class="prize-count">${p.remaining}/${p.total}</span>`}
     </div>`).join('');
-  */
 }
 
 // =====================================================
