@@ -13,136 +13,173 @@
     --bg:#0A0E1A;--bg2:#111827;--bg3:#1F2937;
     --border:rgba(255,255,255,0.08);--text:#F9FAFB;--text-muted:#9CA3AF;
     --success:#10B981;--danger:#EF4444;--warning:#F59E0B;
+    --tab-h:56px;
   }
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{font-size:16px}
+  body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--text);
+    min-height:100vh;min-height:100dvh;overscroll-behavior:none}
 
-  /* LOGIN */
-  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#0033CC22,transparent 70%),var(--bg)}
-  .login-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:40px;width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
-  .login-icon{font-size:3rem;margin-bottom:16px}
-  .login-title{font-size:1.6rem;font-weight:800;color:var(--gold);margin-bottom:8px}
-  .login-sub{font-size:0.85rem;color:var(--text-muted);margin-bottom:28px;font-family:'Sarabun',sans-serif}
-  .login-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'Kanit',sans-serif;font-size:1rem;color:var(--text);outline:none;margin-bottom:12px;text-align:center;letter-spacing:4px;transition:border-color 0.2s}
+  /* ── LOGIN ── */
+  #login-screen{min-height:100dvh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,#0033CC22,transparent 70%),var(--bg);padding:20px}
+  .login-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;
+    padding:32px 24px;width:100%;max-width:360px;text-align:center}
+  .login-icon{font-size:3rem;margin-bottom:12px}
+  .login-title{font-size:1.5rem;font-weight:800;color:var(--gold);margin-bottom:6px}
+  .login-sub{font-size:0.85rem;color:var(--text-muted);margin-bottom:24px;font-family:'Sarabun',sans-serif}
+  .login-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+    padding:14px;font-family:'Kanit',sans-serif;font-size:1.1rem;color:var(--text);outline:none;
+    margin-bottom:12px;text-align:center;letter-spacing:4px;transition:border-color 0.2s}
   .login-input:focus{border-color:var(--brand-light)}
-  .login-btn{width:100%;background:var(--brand);border:none;border-radius:10px;padding:14px;font-family:'Kanit',sans-serif;font-size:1rem;font-weight:700;color:white;cursor:pointer;transition:background 0.2s}
-  .login-btn:hover{background:var(--brand-light)}
+  .login-btn{width:100%;background:var(--brand);border:none;border-radius:10px;padding:15px;
+    font-family:'Kanit',sans-serif;font-size:1rem;font-weight:700;color:white;cursor:pointer}
   .login-error{color:var(--danger);font-size:0.85rem;margin-top:10px;display:none}
 
-  /* DASHBOARD */
-  #dashboard{display:none}
-  .navbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-  .navbar-brand{font-size:1.2rem;font-weight:800;color:var(--gold)}
-  .navbar-actions{display:flex;gap:8px}
-  .btn{padding:8px 18px;border-radius:8px;font-family:'Kanit',sans-serif;font-size:0.85rem;font-weight:600;border:none;cursor:pointer;transition:all 0.2s}
+  /* ── DASHBOARD ── */
+  #dashboard{display:none;padding-bottom:calc(var(--tab-h) + 8px)}
+
+  /* ── NAVBAR ── */
+  .navbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;height:52px;
+    display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .navbar-brand{font-size:1rem;font-weight:800;color:var(--gold)}
+  .navbar-actions{display:flex;gap:6px}
+
+  /* ── BUTTONS ── */
+  .btn{padding:9px 16px;border-radius:8px;font-family:'Kanit',sans-serif;font-size:0.85rem;
+    font-weight:600;border:none;cursor:pointer;transition:all 0.2s;min-height:40px;
+    display:inline-flex;align-items:center;justify-content:center;gap:4px}
   .btn-primary{background:var(--brand);color:white}
-  .btn-primary:hover{background:var(--brand-light)}
   .btn-success{background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3)}
-  .btn-success:hover{background:rgba(16,185,129,0.25)}
   .btn-danger{background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3)}
-  .btn-danger:hover{background:rgba(239,68,68,0.25)}
   .btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
-  .btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,0.2)}
   .btn-warning{background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid rgba(245,158,11,0.3)}
-  .btn-warning:hover{background:rgba(245,158,11,0.25)}
+  .btn:disabled{opacity:0.5;cursor:not-allowed}
 
-  .main{padding:24px;max-width:1000px;margin:0 auto}
-
-  /* TABS */
-  .tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:4px}
-  .tab{flex:1;padding:10px;border:none;background:transparent;color:var(--text-muted);font-family:'Kanit',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;border-radius:8px;transition:all 0.2s;text-align:center}
-  .tab.active{background:var(--brand);color:white}
+  /* ── BOTTOM TAB BAR (mobile-first) ── */
+  .tabs{position:fixed;bottom:0;left:0;right:0;z-index:100;
+    display:flex;background:var(--bg2);border-top:1px solid var(--border);
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom));height:var(--tab-h)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;border:none;background:transparent;color:var(--text-muted);
+    font-family:'Kanit',sans-serif;font-size:0.6rem;font-weight:600;cursor:pointer;
+    border-radius:8px;transition:all 0.15s;padding:4px 2px;min-width:0}
+  .tab .tab-icon{font-size:1.3rem;line-height:1}
+  .tab .tab-label{font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .tab.active{color:var(--gold);background:rgba(255,215,0,0.08)}
   .tab-content{display:none}
   .tab-content.active{display:block}
 
-  /* STATS */
-  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
-  .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px}
-  .stat-label{font-size:0.75rem;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
-  .stat-value{font-size:2rem;font-weight:800;line-height:1}
-  .stat-sub{font-size:0.8rem;color:var(--text-muted);margin-top:4px;font-family:'Sarabun',sans-serif}
+  /* ── MAIN CONTENT ── */
+  .main{padding:12px;max-width:600px;margin:0 auto}
+
+  /* ── STATS ── */
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .stat-label{font-size:0.7rem;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:4px}
+  .stat-value{font-size:1.8rem;font-weight:800;line-height:1}
+  .stat-sub{font-size:0.72rem;color:var(--text-muted);margin-top:2px;font-family:'Sarabun',sans-serif}
   .stat-card.gold{border-color:rgba(255,215,0,0.3);background:linear-gradient(135deg,rgba(0,51,204,0.2),var(--bg2))}
   .stat-card.gold .stat-value{color:var(--gold)}
 
-  /* CHARTS */
-  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-  @media(max-width:600px){.chart-grid{grid-template-columns:1fr}}
-  .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px}
-  .chart-title{font-size:0.85rem;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:16px}
-  .chart-wrap{position:relative;height:200px}
+  /* ── CHARTS ── */
+  .chart-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px}
+  .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .chart-title{font-size:0.78rem;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;
+    text-transform:uppercase;margin-bottom:12px}
+  .chart-wrap{position:relative;height:160px}
 
-  /* PRIZE CARDS */
-  .prize-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:24px}
-  .prize-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px}
-  .prize-emoji-big{font-size:2rem;flex-shrink:0}
-  .prize-info{flex:1}
-  .prize-card-name{font-size:0.95rem;font-weight:700}
-  .prize-bar-bg{width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin:6px 0 4px}
+  /* ── PRIZE CARDS ── */
+  .prize-cards{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:16px}
+  .prize-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+    padding:12px;display:flex;align-items:center;gap:12px}
+  .prize-emoji-big{font-size:1.8rem;flex-shrink:0}
+  .prize-info{flex:1;min-width:0}
+  .prize-card-name{font-size:0.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prize-bar-bg{width:100%;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin:5px 0 3px}
   .prize-bar{height:100%;border-radius:3px;transition:width 0.8s ease}
   .prize-count-row{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--text-muted)}
-  .prize-count-row span:last-child{color:var(--text);font-weight:700}
 
-  /* TABLE */
-  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-  .section-title{font-size:1rem;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase}
-  .table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px}
-  table{width:100%;border-collapse:collapse}
+  /* ── TABLE — mobile card style ── */
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .section-title{font-size:0.8rem;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase}
+  .table-wrap{margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   thead{background:var(--bg3)}
-  th{padding:12px 16px;text-align:left;font-size:0.7rem;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase}
-  td{padding:12px 16px;font-size:0.85rem;border-top:1px solid var(--border);font-family:'Sarabun',sans-serif}
-  tr:hover td{background:rgba(255,255,255,0.02)}
-  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;font-family:'Kanit',sans-serif}
+  th{padding:10px 12px;text-align:left;font-size:0.65rem;font-weight:700;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase}
+  td{padding:10px 12px;font-size:0.82rem;border-top:1px solid var(--border);font-family:'Sarabun',sans-serif}
+  .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:10px;
+    font-size:0.68rem;font-weight:700;font-family:'Kanit',sans-serif;white-space:nowrap}
   .badge-pending{background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid rgba(245,158,11,0.3)}
   .badge-claimed{background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3)}
   .badge-cancelled{background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3)}
-  .code-mono{font-family:'Courier New',monospace;font-weight:700;color:var(--gold);letter-spacing:2px;font-size:0.85rem}
+  .code-mono{font-family:'Courier New',monospace;font-weight:700;color:var(--gold);letter-spacing:1px;font-size:0.82rem}
 
-  /* SEARCH */
-  .search-wrap{display:flex;gap:8px;margin-bottom:16px}
-  .search-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Kanit',sans-serif;font-size:0.9rem;color:var(--text);outline:none}
+  /* ── SEARCH ── */
+  .search-wrap{display:flex;gap:8px;margin-bottom:12px}
+  .search-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+    padding:10px 14px;font-family:'Kanit',sans-serif;font-size:0.9rem;color:var(--text);outline:none}
   .search-input:focus{border-color:var(--brand-light)}
 
-  /* SETTINGS */
-  .settings-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px}
-  .settings-row{display:flex;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--border)}
+  /* ── SETTINGS ── */
+  .settings-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+  .settings-row{padding:12px 0;border-bottom:1px solid var(--border)}
   .settings-row:last-child{border-bottom:none;padding-bottom:0}
-  .settings-label{flex:1}
-  .settings-label-title{font-size:0.95rem;font-weight:600}
-  .settings-label-desc{font-size:0.8rem;color:var(--text-muted);font-family:'Sarabun',sans-serif;margin-top:2px}
-  .settings-input{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:'Kanit',sans-serif;font-size:0.9rem;color:var(--text);outline:none;width:160px}
+  .settings-label-title{font-size:0.9rem;font-weight:600;margin-bottom:2px}
+  .settings-label-desc{font-size:0.78rem;color:var(--text-muted);font-family:'Sarabun',sans-serif;margin-bottom:8px}
+  .settings-row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .settings-input{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+    padding:9px 12px;font-family:'Kanit',sans-serif;font-size:0.9rem;color:var(--text);
+    outline:none;flex:1;min-width:80px;max-width:160px}
   .settings-input:focus{border-color:var(--brand-light)}
 
-  /* QR */
-  .qr-card{background:var(--bg2);border:1px solid rgba(255,215,0,0.3);border-radius:14px;padding:24px;text-align:center}
-  .qr-title{font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:4px}
-  .qr-sub{font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;font-family:'Sarabun',sans-serif}
-  #qr-image-wrap{width:200px;height:200px;background:white;border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  /* ── QR ── */
+  .qr-card{background:var(--bg2);border:1px solid rgba(255,215,0,0.3);border-radius:14px;padding:20px;text-align:center}
+  .qr-title{font-size:1rem;font-weight:700;color:var(--gold);margin-bottom:4px}
+  .qr-sub{font-size:0.82rem;color:var(--text-muted);margin-bottom:14px;font-family:'Sarabun',sans-serif}
+  #qr-image-wrap{width:180px;height:180px;background:white;border-radius:12px;margin:0 auto 14px;
+    display:flex;align-items:center;justify-content:center;overflow:hidden}
   #qr-image-wrap img{width:100%;height:100%}
-  .qr-url{font-size:0.7rem;color:var(--text-muted);word-break:break-all;background:var(--bg3);border-radius:8px;padding:8px 12px;font-family:monospace;margin-bottom:12px}
-  .qr-timer{font-size:1.5rem;font-weight:800;color:var(--warning);margin:8px 0}
-  .qr-timer-sub{font-size:0.8rem;color:var(--text-muted)}
+  .qr-url{font-size:0.68rem;color:var(--text-muted);word-break:break-all;background:var(--bg3);
+    border-radius:8px;padding:8px 10px;font-family:monospace;margin-bottom:10px}
+  .qr-timer{font-size:1.6rem;font-weight:800;color:var(--warning);margin:8px 0}
+  .qr-timer-sub{font-size:0.78rem;color:var(--text-muted)}
   .qr-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 
-  /* MODAL */
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s}
+  /* ── MODAL ── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);
+    z-index:200;display:flex;align-items:flex-end;justify-content:center;
+    opacity:0;pointer-events:none;transition:opacity 0.2s}
   .modal-overlay.active{opacity:1;pointer-events:all}
-  .modal{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:32px;width:360px;text-align:center}
-  .modal-icon{font-size:3rem;margin-bottom:16px}
-  .modal-title{font-size:1.3rem;font-weight:800;margin-bottom:8px}
-  .modal-desc{font-size:0.85rem;color:var(--text-muted);font-family:'Sarabun',sans-serif;line-height:1.6;margin-bottom:24px}
-  .modal-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Kanit',sans-serif;font-size:0.9rem;color:var(--text);outline:none;margin-bottom:16px}
-  .modal-actions{display:flex;gap:12px;justify-content:center}
+  .modal{background:var(--bg2);border:1px solid var(--border);border-radius:20px 20px 0 0;
+    padding:24px;width:100%;max-width:480px;text-align:center;
+    transform:translateY(100%);transition:transform 0.3s ease}
+  .modal-overlay.active .modal{transform:translateY(0)}
+  .modal-icon{font-size:2.5rem;margin-bottom:12px}
+  .modal-title{font-size:1.2rem;font-weight:800;margin-bottom:6px}
+  .modal-desc{font-size:0.85rem;color:var(--text-muted);font-family:'Sarabun',sans-serif;line-height:1.6;margin-bottom:20px}
+  .modal-actions{display:flex;gap:10px;justify-content:center}
+  .modal-actions .btn{flex:1;max-width:160px;padding:12px}
 
-  /* TOAST */
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px 24px;font-size:0.9rem;font-weight:600;z-index:300;transition:transform 0.3s ease;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+  /* ── TOAST ── */
+  .toast{position:fixed;bottom:calc(var(--tab-h) + 12px);left:50%;
+    transform:translateX(-50%) translateY(80px);background:var(--bg3);
+    border:1px solid var(--border);border-radius:12px;padding:11px 20px;
+    font-size:0.88rem;font-weight:600;z-index:300;transition:transform 0.3s ease;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);white-space:nowrap;max-width:90vw;text-align:center}
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast.success{border-color:rgba(16,185,129,0.4);color:var(--success)}
   .toast.error{border-color:rgba(239,68,68,0.4);color:var(--danger)}
 
-  .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--brand);border-radius:50%;animation:spin 0.8s linear infinite;margin:40px auto}
+  .spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.1);
+    border-top-color:var(--brand);border-radius:50%;animation:spin 0.8s linear infinite;margin:30px auto}
   @keyframes spin{to{transform:rotate(360deg)}}
   .loading-text{text-align:center;color:var(--text-muted);font-family:'Sarabun',sans-serif;padding:20px}
-  .empty-state{text-align:center;padding:40px;color:var(--text-muted);font-family:'Sarabun',sans-serif}
+  .empty-state{text-align:center;padding:30px;color:var(--text-muted);font-family:'Sarabun',sans-serif}
+  .qr-claim-box{background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.25);border-radius:14px;
+    padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .qr-claim-hint{font-size:0.75rem;color:var(--text-muted);text-align:center;
+    font-family:'Sarabun',sans-serif;line-height:1.5}
 </style>
 </head>
 <body>
@@ -181,11 +218,21 @@
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab active" onclick="switchTab('overview')">📊 ภาพรวม</button>
-      <button class="tab" onclick="switchTab('players')">👥 ผู้เล่น</button>
-      <button class="tab" onclick="switchTab('scan')">📷 สแกนรับ</button>
-      <button class="tab" onclick="switchTab('qr')">📱 QR Code</button>
-      <button class="tab" onclick="switchTab('settings')">⚙️ ตั้งค่า</button>
+      <button class="tab active" onclick="switchTab('overview')" id="tab-btn-overview">
+        <span class="tab-icon">📊</span><span class="tab-label">ภาพรวม</span>
+      </button>
+      <button class="tab" onclick="switchTab('players')" id="tab-btn-players">
+        <span class="tab-icon">👥</span><span class="tab-label">ผู้เล่น</span>
+      </button>
+      <button class="tab" onclick="switchTab('scan')" id="tab-btn-scan">
+        <span class="tab-icon">📷</span><span class="tab-label">สแกนรับ</span>
+      </button>
+      <button class="tab" onclick="switchTab('qr')" id="tab-btn-qr">
+        <span class="tab-icon">📱</span><span class="tab-label">QR Code</span>
+      </button>
+      <button class="tab" onclick="switchTab('settings')" id="tab-btn-settings">
+        <span class="tab-icon">⚙️</span><span class="tab-label">ตั้งค่า</span>
+      </button>
     </div>
 
     <!-- TAB: OVERVIEW -->
@@ -242,6 +289,10 @@
       <div class="qr-card" style="max-width:420px;margin:0 auto">
         <div class="qr-title">📷 สแกน QR รับรางวัล</div>
         <div class="qr-sub">ให้ผู้เล่นแสดง QR แล้วกดปุ่มสแกน หรือพิมพ์รหัสเอง</div>
+        <div id="line-browser-warning" style="display:none;background:rgba(255,200,0,0.12);border:1px solid rgba(255,200,0,0.35);border-radius:10px;padding:10px 14px;margin-top:10px;font-size:0.82rem;font-family:'Sarabun',sans-serif;line-height:1.7;color:var(--gold)">
+          📵 ตอนนี้เปิดอยู่ใน <strong>Line Browser</strong> — กล้องใช้ไม่ได้<br>
+          กด <strong>··· → เปิดใน Chrome</strong> แล้วกลับมาใช้หน้านี้ใหม่ครับ
+        </div>
 
         <!-- กล้องสแกน -->
         <div id="scan-reader-wrap" style="width:100%;max-width:300px;margin:16px auto;border-radius:16px;overflow:hidden;border:2px solid rgba(255,215,0,0.3);display:none;position:relative">
@@ -261,6 +312,7 @@
           <button class="btn btn-primary" onclick="lookupCode()">🔍 ตรวจสอบ</button>
         </div>
         <button class="btn btn-ghost" id="scan-camera-btn" onclick="toggleCamera()" style="width:100%;margin-top:8px">📷 เปิดกล้องสแกน QR</button>
+        <div id="scan-debug" style="display:none;font-size:0.75rem;color:var(--warning);background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.2);border-radius:8px;padding:8px 12px;margin-top:6px;font-family:'Sarabun',sans-serif;line-height:1.6"></div>
 
         <!-- ผลการตรวจสอบ -->
         <div id="scan-result-box" style="display:none;width:100%;margin-top:16px;border-radius:14px;padding:16px;border:1px solid var(--border);background:var(--bg3)">
@@ -322,23 +374,19 @@
         <div class="section-title" style="margin-bottom:16px">⚙️ ตั้งค่า Campaign</div>
 
         <div class="settings-row">
-          <div class="settings-label">
-            <div class="settings-label-title">📅 วันหมดอายุ Campaign</div>
-            <div class="settings-label-desc">หลังจากวันนี้ ผู้เล่นจะไม่สามารถเล่นได้</div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div class="settings-label-title">📅 วันหมดอายุ Campaign</div>
+          <div class="settings-label-desc">หลังจากวันนี้ ผู้เล่นจะไม่สามารถเล่นได้</div>
+          <div class="settings-row-actions">
             <input class="settings-input" type="date" id="expiry-date-input">
             <button class="btn btn-primary" onclick="saveExpiryDate()">บันทึก</button>
           </div>
         </div>
 
         <div class="settings-row">
-          <div class="settings-label">
-            <div class="settings-label-title">⏱️ อายุ QR Token (นาที)</div>
-            <div class="settings-label-desc">ผู้เล่นต้องเล่นภายในเวลานี้หลังสแกน QR</div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input class="settings-input" type="number" id="token-mins-input" min="1" max="60" value="10" style="width:80px">
+          <div class="settings-label-title">⏱️ อายุ QR Token (นาที)</div>
+          <div class="settings-label-desc">ผู้เล่นต้องเล่นภายในเวลานี้หลังสแกน QR</div>
+          <div class="settings-row-actions">
+            <input class="settings-input" type="number" id="token-mins-input" min="1" max="60" value="10" style="width:80px;max-width:80px">
             <button class="btn btn-primary" onclick="saveTokenMins()">บันทึก</button>
           </div>
         </div>
@@ -428,17 +476,35 @@ const LINE_GROUP_ID = 'C1234567890abcdef...';
 
 <script>
 const ADMIN_CONFIG = {
-  //APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyi4G4kURShP-wks_KLkVn6_j3R_K0oyfefHpAFWAN4_QXK7BBL-DExTOvrZusyBv62Pw/exec',
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzJE_C-A8WFW9Ys4UoIfguQK65_K5xpgLUKW-5dR-NQs_o40Z0cpUaPNfTwmvOXyGcPrA/exec',
-  PASSWORD: 'admin1234'
+  PASSWORD: ''
 };
 
 let statsData=null, allPlayers=[], prizeChartInst=null, stockChartInst=null;
 let cancelTargetId=null, qrCountdownTimer=null, currentQrExpiry=null;
 
 // =====================================================
-// AUTH
+// AUTH — จำรหัสผ่านไว้ใน localStorage 7 วัน
 // =====================================================
+const SESSION_KEY = 'rwadmin_session';
+const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7 วัน
+
+function saveSession(pw){
+  try{
+    localStorage.setItem(SESSION_KEY, JSON.stringify({pw, exp: Date.now()+SESSION_TTL}));
+  }catch(e){}
+}
+function loadSession(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY)||'{}');
+    if(s.pw && s.exp > Date.now()) return s.pw;
+  }catch(e){}
+  return null;
+}
+function clearSession(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+}
+
 function login(){
   const pw = document.getElementById('pw-input').value;
   ADMIN_CONFIG.PASSWORD = pw;
@@ -446,11 +512,21 @@ function login(){
   loadStats();
 }
 function logout(){
+  clearSession();
   ADMIN_CONFIG.PASSWORD='';
   document.getElementById('dashboard').style.display='none';
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('pw-input').value='';
 }
+
+// Auto-login ถ้ามี session ที่ยังไม่หมดอายุ
+window.addEventListener('DOMContentLoaded', ()=>{
+  const saved = loadSession();
+  if(saved){
+    ADMIN_CONFIG.PASSWORD = saved;
+    loadStats();
+  }
+});
 
 // =====================================================
 // LOAD
@@ -460,6 +536,7 @@ async function loadStats(){
     const res=await callAPI({action:'admin',subAction:'stats',password:ADMIN_CONFIG.PASSWORD});
     if(!res.success){document.getElementById('login-error').style.display='block';return}
     statsData=res; allPlayers=res.recentPlayers||[];
+    saveSession(ADMIN_CONFIG.PASSWORD);
     document.getElementById('login-screen').style.display='none';
     document.getElementById('dashboard').style.display='block';
     renderStats(res);
@@ -663,10 +740,17 @@ async function confirmReset(){
 // UTILS
 // =====================================================
 function switchTab(name){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['overview','players','scan','qr','settings'][i]===name));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const activeBtn=document.getElementById('tab-btn-'+name);
+  if(activeBtn) activeBtn.classList.add('active');
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if(name!=='scan') stopCamera();
+  if(name==='scan'){
+    const isLine = /Line\//.test(navigator.userAgent||'');
+    const warn = document.getElementById('line-browser-warning');
+    if(warn) warn.style.display = isLine ? 'block' : 'none';
+  }
 }
 
 // =====================================================
@@ -680,7 +764,40 @@ function toggleCamera(){
 
 async function startCamera(){
   const btn=document.getElementById('scan-camera-btn');
+
+  // ตรวจจับ Line in-app browser
+  const ua = navigator.userAgent || '';
+  const isLineBrowser = /Line\//.test(ua);
+  if(isLineBrowser){
+    const dbg = document.getElementById('scan-debug');
+    dbg.innerHTML = '⚠️ กล้องใช้งานใน Line Browser ไม่ได้<br><br>'
+      + '<strong>กรุณากด "เปิดใน Browser" ก่อน</strong><br>'
+      + '<span style="opacity:0.7">กด ··· มุมขวาบน → เปิดใน Chrome หรือ Safari</span>';
+    dbg.style.display='block';
+    btn.textContent='📷 เปิดกล้องสแกน QR'; btn.disabled=false;
+    showToast('⚠️ กรุณาเปิดใน Chrome/Safari ก่อนครับ','error');
+    return;
+  }
+
+  // ตรวจสอบ HTTPS ก่อน
+  if(location.protocol !== 'https:' && location.hostname !== 'localhost'){
+    showToast('❌ ต้องเปิดผ่าน HTTPS ถึงจะใช้กล้องได้ครับ','error');
+    document.getElementById('scan-debug').textContent='⚠️ URL ต้องเป็น https:// — กล้องไม่ทำงานบน http:// หรือ file://';
+    document.getElementById('scan-debug').style.display='block';
+    return;
+  }
+
+  // ตรวจสอบว่า browser รองรับ getUserMedia
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showToast('❌ เบราว์เซอร์นี้ไม่รองรับกล้อง','error');
+    document.getElementById('scan-debug').textContent='⚠️ Browser ไม่รองรับ getUserMedia — ลองใช้ Chrome บน Android หรือ Safari บน iPhone';
+    document.getElementById('scan-debug').style.display='block';
+    return;
+  }
+
   btn.textContent='⏳ กำลังเปิดกล้อง...'; btn.disabled=true;
+  document.getElementById('scan-debug').style.display='none';
+
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}
@@ -692,13 +809,21 @@ async function startCamera(){
     document.getElementById('scan-reader-wrap').style.display='block';
     btn.textContent='⏹️ ปิดกล้อง'; btn.disabled=false;
     cameraOn=true;
-    // เริ่ม decode loop
     _scanLoop();
   }catch(err){
     btn.textContent='📷 เปิดกล้องสแกน QR'; btn.disabled=false;
-    const msg = err.name==='NotAllowedError'
-      ? 'กรุณาอนุญาตการใช้กล้องในเบราว์เซอร์ก่อนครับ'
-      : 'ไม่สามารถเปิดกล้องได้: '+err.message;
+    let msg='';
+    if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError'){
+      msg='กรุณาอนุญาตกล้อง: ไปที่ Settings > Safari/Chrome > Camera > Allow';
+    }else if(err.name==='NotFoundError'){
+      msg='ไม่พบกล้องในอุปกรณ์นี้';
+    }else if(err.name==='NotReadableError'){
+      msg='กล้องถูกใช้งานโดยแอปอื่นอยู่ กรุณาปิดแอปนั้นก่อน';
+    }else{
+      msg='เปิดกล้องไม่ได้: '+err.name+' — '+err.message;
+    }
+    document.getElementById('scan-debug').textContent='⚠️ '+msg;
+    document.getElementById('scan-debug').style.display='block';
     showToast('❌ '+msg,'error');
   }
 }
